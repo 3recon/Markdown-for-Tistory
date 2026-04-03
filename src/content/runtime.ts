@@ -1,8 +1,9 @@
 import type { EditorAdapter } from './editorAdapter';
 
 import { detectCurrentPostIdentity, isLikelyTistoryEditorPage } from './tistoryPostIdentity';
-import { detectEditorAdapter } from './editorAdapter';
+import { detectEditorAdapter, detectEditorAdapterFromTarget } from './editorAdapter';
 import { createModeControls } from './modeControls';
+import { detectTitleAdapter } from './titleAdapter';
 import { createPreviewPanel } from '../preview/previewPanel';
 import { attachBidirectionalScrollSync } from '../preview/scrollSync';
 import { createPostSourceRepository } from '../storage/postSourceRepository';
@@ -26,7 +27,7 @@ export const createExtensionBootstrap = () => {
         return;
       }
 
-      const editor = detectEditorAdapter(document);
+      let editor = detectEditorAdapter(document);
 
       if (!editor) {
         console.info('[tistory-md] editor page detected but no supported editor element was found.');
@@ -36,6 +37,7 @@ export const createExtensionBootstrap = () => {
       const settings = await settingsRepository.getSettings();
       const record = await repository.ensurePostRecord(identity);
       const preview = createPreviewPanel();
+      const title = detectTitleAdapter(document);
       let currentState = {
         markdownModeEnabled: settings.markdownModeEnabled,
         previewEnabled: settings.previewEnabled
@@ -51,10 +53,15 @@ export const createExtensionBootstrap = () => {
         }
       };
 
+      const syncTitle = () => {
+        preview.setTitle(title?.getValue() ?? '');
+      };
+
       if (currentState.markdownModeEnabled && record.markdown) {
         editor.setMarkdown(record.markdown);
       }
 
+      syncTitle();
       await syncPreview(lastMarkdown);
       preview.setVisible(currentState.markdownModeEnabled && currentState.previewEnabled);
 
@@ -67,6 +74,10 @@ export const createExtensionBootstrap = () => {
           };
 
           if (currentState.markdownModeEnabled) {
+            if (!editor) {
+              return;
+            }
+
             const restored = await repository.getPostSource(identity);
             const markdown = restored?.markdown || editor.getMarkdown();
             editor.setMarkdown(markdown);
@@ -97,7 +108,17 @@ export const createExtensionBootstrap = () => {
         }
       });
 
-      const detachInput = wireEditorInput(editor, async () => {
+      const detachInput = wireEditorInput(editor.ownerDocument, async (targetEditor) => {
+        if (!editor) {
+          return;
+        }
+
+        if (targetEditor && targetEditor.element !== editor.element) {
+          scrollSync.destroy();
+          editor = targetEditor;
+          scrollSync = attachBidirectionalScrollSync(editor.element, preview.body);
+        }
+
         if (!currentState.markdownModeEnabled) {
           return;
         }
@@ -105,21 +126,29 @@ export const createExtensionBootstrap = () => {
         await syncPreview(editor.getMarkdown());
       });
 
-      const scrollSync = attachBidirectionalScrollSync(
-        editor.element,
-        preview.body
-      );
+      const detachTitleInput = title?.onInput(syncTitle) ?? (() => undefined);
+
+      let scrollSync = attachBidirectionalScrollSync(editor.element, preview.body);
 
       console.info('[tistory-md] initialized editor integration for', identity.storageKey);
 
       return () => {
         detachInput();
+        detachTitleInput();
         scrollSync.destroy();
       };
     }
   };
 };
 
-const wireEditorInput = (editor: EditorAdapter, listener: () => void) => {
-  return editor.onInput(listener);
+const wireEditorInput = (
+  documentRef: Document,
+  listener: (editor: EditorAdapter | null) => void
+) => {
+  const onInput = (event: Event) => {
+    listener(detectEditorAdapterFromTarget(event.target));
+  };
+
+  documentRef.addEventListener('input', onInput, true);
+  return () => documentRef.removeEventListener('input', onInput, true);
 };
