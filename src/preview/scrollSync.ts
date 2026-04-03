@@ -27,6 +27,7 @@ export interface ScrollLikeElement {
   scrollHeight: number;
   clientHeight: number;
   addEventListener(type: 'scroll', listener: () => void): void;
+  removeEventListener?(type: 'scroll', listener: () => void): void;
 }
 
 export interface ScrollSyncController {
@@ -75,8 +76,8 @@ export const attachBidirectionalScrollSync = (
 
   return {
     destroy() {
-      // The integration layer should replace this with removable listeners once the
-      // actual Tistory editor DOM is wired in the next roadmap stage.
+      source.removeEventListener?.('scroll', syncToTarget);
+      target.removeEventListener?.('scroll', syncToSource);
     }
   };
 };
