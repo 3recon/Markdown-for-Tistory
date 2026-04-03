@@ -1,4 +1,4 @@
-import type { PostIdentity, PostKind } from '../shared/types/post';
+import type { PostIdentity, PostIdentitySource, PostKind } from '../shared/types/post';
 
 const EDITOR_PATH_HINTS = ['/manage', '/post/write', '/category', '/newpost'];
 const QUERY_ID_KEYS = ['postId', 'postNo', 'id'];
@@ -9,6 +9,10 @@ const DOM_ID_SELECTORS = [
   'meta[name="post-id"]',
   '[data-post-id]'
 ];
+
+const normalizeIdentityValue = (value: string): string => {
+  return value.replace(/[^a-z0-9:/?&=_-]+/gi, '-');
+};
 
 const getPathId = (pathname: string): string | null => {
   const match = pathname.match(/\/(\d+)(?:\/)?$/);
@@ -53,6 +57,10 @@ const inferPostKind = (postId: string | null): PostKind => {
   return postId ? 'post' : 'draft';
 };
 
+const buildEditorContextKey = (location: Location): string => {
+  return normalizeIdentityValue(`${location.pathname.toLowerCase()}${location.search}`);
+};
+
 export const isLikelyTistoryEditorPage = (location: Location): boolean => {
   const normalizedPath = location.pathname.toLowerCase();
   return EDITOR_PATH_HINTS.some((hint) => normalizedPath.includes(hint));
@@ -66,12 +74,21 @@ export const detectCurrentPostIdentity = (
     return null;
   }
 
-  const postId = getQueryId(location) ?? getPathId(location.pathname) ?? getDomId(documentRef);
+  const queryId = getQueryId(location);
+  const pathId = getPathId(location.pathname);
+  const domId = getDomId(documentRef);
+  const postId = queryId ?? pathId ?? domId;
   const kind = inferPostKind(postId);
   const origin = location.origin.toLowerCase();
-  const editorPath = location.pathname.toLowerCase();
-  const fallbackId = postId ?? `${editorPath}${location.search}`;
-  const normalizedId = fallbackId.replace(/[^a-z0-9:/?&=_-]+/gi, '-');
+  const editorContextKey = buildEditorContextKey(location);
+  const source: PostIdentitySource = queryId
+    ? 'query'
+    : pathId
+      ? 'path'
+      : domId
+        ? 'dom'
+        : 'fallback';
+  const normalizedId = normalizeIdentityValue(postId ?? editorContextKey);
   const storageKey = `${origin}:${kind}:${normalizedId}`;
 
   return {
@@ -79,6 +96,8 @@ export const detectCurrentPostIdentity = (
     origin,
     pathname: location.pathname,
     postId,
+    source,
+    editorContextKey,
     storageKey
   };
 };

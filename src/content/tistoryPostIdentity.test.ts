@@ -27,6 +27,7 @@ describe('detectCurrentPostIdentity', () => {
     const identity = detectCurrentPostIdentity(location as unknown as Location, documentRef);
     expect(identity?.postId).toBe('42');
     expect(identity?.kind).toBe('post');
+    expect(identity?.source).toBe('query');
   });
 
   it('falls back to draft identity when no post id exists', () => {
@@ -36,5 +37,7 @@ describe('detectCurrentPostIdentity', () => {
     const identity = detectCurrentPostIdentity(location as unknown as Location, documentRef);
     expect(identity?.kind).toBe('draft');
     expect(identity?.storageKey).toContain('draft');
+    expect(identity?.editorContextKey).toContain('/manage/newpost');
+    expect(identity?.source).toBe('fallback');
   });
 });
