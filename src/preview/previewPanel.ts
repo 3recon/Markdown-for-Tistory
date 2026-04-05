@@ -28,7 +28,7 @@ const panelStyles = `
 
 const bodyStyles = `
   display: block;
-  padding: 24px 24px 56px;
+  padding: 300px 24px;
   color: #333;
   line-height: 1.8;
   font-size: 16px;
