@@ -23,6 +23,47 @@ interface CodeMirrorLike {
   off?(event: 'change', listener: () => void): void;
 }
 
+const isScrollableElement = (element: HTMLElement): boolean => {
+  const style = window.getComputedStyle(element);
+  const overflowY = style.overflowY;
+
+  return /(auto|scroll|overlay)/.test(overflowY) && element.scrollHeight > element.clientHeight + 1;
+};
+
+const resolveDocumentScrollElement = (documentRef: Document): HTMLElement | null => {
+  const scrollingElement = documentRef.scrollingElement;
+  if (scrollingElement instanceof HTMLElement) {
+    return scrollingElement;
+  }
+
+  if (documentRef.documentElement instanceof HTMLElement) {
+    return documentRef.documentElement;
+  }
+
+  if (documentRef.body instanceof HTMLElement) {
+    return documentRef.body;
+  }
+
+  return null;
+};
+
+const findScrollContainer = (element: HTMLElement): HTMLElement => {
+  if (isScrollableElement(element)) {
+    return element;
+  }
+
+  let current: HTMLElement | null = element.parentElement;
+  while (current) {
+    if (isScrollableElement(current)) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return resolveDocumentScrollElement(element.ownerDocument) ?? element;
+};
+
 export interface EditorAdapter {
   element: EditorElement;
   scrollElement: HTMLElement;
@@ -139,7 +180,7 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
 
 const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
-  scrollElement: element,
+  scrollElement: findScrollContainer(element),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.innerText || element.textContent || '');
@@ -157,7 +198,7 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
 
 const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): EditorAdapter => ({
   element: body,
-  scrollElement: body,
+  scrollElement: resolveDocumentScrollElement(iframe.contentDocument ?? body.ownerDocument) ?? body,
   ownerDocument: iframe.contentDocument ?? body.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(body.innerText || body.textContent || '');
