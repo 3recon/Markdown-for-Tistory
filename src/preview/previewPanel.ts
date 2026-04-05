@@ -29,9 +29,10 @@ const bodyStyles = `
   min-height: 0;
   overflow: auto;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 20px 20px 50px;
   color: #333;
   line-height: 1.8;
@@ -350,6 +351,45 @@ const createBody = (): HTMLDivElement => {
   return body;
 };
 
+const attachPanelWheelProxy = (panel: HTMLElement, body: HTMLElement) => {
+  panel.addEventListener(
+    'wheel',
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Node) || !panel.contains(target)) {
+        return;
+      }
+
+      const interactiveScrollable = target instanceof HTMLElement
+        ? target.closest('pre, table, [data-preview-scroll-ignore]')
+        : null;
+      if (interactiveScrollable instanceof HTMLElement) {
+        const canScrollInternally =
+          interactiveScrollable.scrollHeight > interactiveScrollable.clientHeight + 1 ||
+          interactiveScrollable.scrollWidth > interactiveScrollable.clientWidth + 1;
+
+        if (canScrollInternally) {
+          return;
+        }
+      }
+
+      const maxScroll = Math.max(body.scrollHeight - body.clientHeight, 0);
+      if (maxScroll === 0) {
+        return;
+      }
+
+      const nextScrollTop = Math.min(Math.max(body.scrollTop + event.deltaY, 0), maxScroll);
+      if (Math.abs(nextScrollTop - body.scrollTop) < 1) {
+        return;
+      }
+
+      body.scrollTop = nextScrollTop;
+      event.preventDefault();
+    },
+    { passive: false, capture: true }
+  );
+};
+
 const createArticleTitle = (): HTMLHeadingElement => {
   const title = document.createElement('h1');
   title.id = ARTICLE_TITLE_ID;
@@ -385,6 +425,11 @@ export const createPreviewPanel = (): PreviewPanelController => {
     const content = existing.querySelector<HTMLElement>(`#${CONTENT_ID}`);
     if (!body || !articleTitle || !content) {
       throw new Error('Preview panel exists without required elements.');
+    }
+
+    if (!existing.dataset.wheelProxyBound) {
+      attachPanelWheelProxy(existing, body);
+      existing.dataset.wheelProxyBound = 'true';
     }
 
     return {
@@ -424,6 +469,8 @@ export const createPreviewPanel = (): PreviewPanelController => {
   const articleTitle = createArticleTitle();
   const content = createContentRoot();
   body.append(articleTitle, content);
+  attachPanelWheelProxy(panel, body);
+  panel.dataset.wheelProxyBound = 'true';
 
   header.append(title, status);
   panel.append(header, body);
