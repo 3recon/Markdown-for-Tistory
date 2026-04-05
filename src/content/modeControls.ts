@@ -1,20 +1,12 @@
 const CONTROLS_ID = 'tistory-md-controls';
 
-const fixedControlsStyle = `
+const fallbackControlsStyle = `
   position: fixed;
   top: 24px;
   right: min(42vw + 40px, 720px);
   display: flex;
   gap: 10px;
   z-index: 2147483001;
-`;
-
-const inlineControlsStyle = `
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: 12px;
-  vertical-align: middle;
 `;
 
 const buttonBaseStyle = `
@@ -77,6 +69,21 @@ const findModeDropdownAnchor = (): HTMLElement | null => {
   return matches[0]?.element ?? null;
 };
 
+const applyPositionNearAnchor = (root: HTMLDivElement, anchor: HTMLElement): void => {
+  const rect = anchor.getBoundingClientRect();
+  root.setAttribute(
+    'style',
+    [
+      'position: fixed',
+      `top: ${Math.round(rect.top + (rect.height - 40) / 2)}px`,
+      `left: ${Math.round(rect.left - 128)}px`,
+      'display: flex',
+      'gap: 10px',
+      'z-index: 2147483001'
+    ].join('; ')
+  );
+};
+
 export const createModeControls = (options: {
   initialState: ModeControlsState;
   onTogglePreview(): void;
@@ -95,17 +102,16 @@ export const createModeControls = (options: {
   previewButton.addEventListener('click', options.onTogglePreview);
 
   root.append(previewButton);
+  document.body.append(root);
 
   const reposition = () => {
     const anchor = findModeDropdownAnchor();
-    if (anchor?.parentElement) {
-      root.setAttribute('style', inlineControlsStyle);
-      anchor.insertAdjacentElement('afterend', root);
+    if (anchor) {
+      applyPositionNearAnchor(root, anchor);
       return;
     }
 
-    root.setAttribute('style', fixedControlsStyle);
-    document.body.append(root);
+    root.setAttribute('style', fallbackControlsStyle);
   };
 
   reposition();
