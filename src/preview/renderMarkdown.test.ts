@@ -15,7 +15,8 @@ describe('renderMarkdown', () => {
     const html = renderMarkdown('```python\nprint("hello")\n```');
 
     expect(html).toContain('<pre><code class="language-python hljs">');
-    expect(html).toContain('print(&quot;hello&quot;)');
+    expect(html).toContain('hljs-built_in');
+    expect(html).toContain('hljs-string');
   });
 
   it('renders tables in gfm mode', () => {

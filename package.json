@@ -43,6 +43,7 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
+    "highlight.js": "^11.11.1",
     "marked": "^17.0.5"
   }
 }

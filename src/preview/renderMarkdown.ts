@@ -1,3 +1,4 @@
+import hljs from 'highlight.js';
 import { marked, Renderer } from 'marked';
 
 const escapeHtml = (value: string): string => {
@@ -11,14 +12,23 @@ const escapeHtml = (value: string): string => {
 
 const renderer = new Renderer();
 
-renderer.code = ({ text, lang, escaped }) => {
+renderer.code = ({ text, lang }) => {
   const language = (lang ?? '').trim().toLowerCase();
   const codeClass = language ? `language-${escapeHtml(language)} hljs` : 'hljs';
-  const content = `${text.replace(/\n$/, '')}\n`;
+  const source = `${text.replace(/\n$/, '')}\n`;
+  const highlighted = (() => {
+    if (!source.trim()) {
+      return '\n';
+    }
 
-  return `<pre><code class="${codeClass}">${
-    escaped ? content : escapeHtml(content)
-  }</code></pre>\n`;
+    if (language && hljs.getLanguage(language)) {
+      return hljs.highlight(source, { language, ignoreIllegals: true }).value;
+    }
+
+    return hljs.highlightAuto(source).value;
+  })();
+
+  return `<pre><code class="${codeClass}">${highlighted}</code></pre>\n`;
 };
 
 renderer.blockquote = ({ tokens }) => {
