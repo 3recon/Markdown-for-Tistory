@@ -12,8 +12,8 @@ const panelStyles = `
   right: 24px;
   width: min(42vw, 680px);
   height: calc(100vh - 48px);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 16px;
@@ -25,7 +25,8 @@ const panelStyles = `
 `;
 
 const bodyStyles = `
-  flex: 1;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow: auto;
   overflow-x: hidden;
