@@ -14,6 +14,13 @@ const EDITOR_SELECTORS = [
   CONTENTEDITABLE_SELECTOR
 ];
 
+const EDITOR_SCROLL_ROOT_SELECTORS = [
+  '#post-editor-app',
+  '#editorContainer',
+  '.content-editor',
+  '.markdown-editor'
+];
+
 type EditorElement = HTMLTextAreaElement | HTMLElement;
 
 interface CodeMirrorLike {
@@ -62,6 +69,29 @@ const findScrollContainer = (element: HTMLElement): HTMLElement => {
   }
 
   return resolveDocumentScrollElement(element.ownerDocument) ?? element;
+};
+
+const isScrollContainerCandidate = (element: HTMLElement): boolean => {
+  const style = window.getComputedStyle(element);
+  return /(auto|scroll|overlay)/.test(style.overflowY) || element.scrollHeight > element.clientHeight + 1;
+};
+
+const findPreferredEditorScrollElement = (element: HTMLElement): HTMLElement => {
+  for (const selector of EDITOR_SCROLL_ROOT_SELECTORS) {
+    const candidate =
+      element.closest(selector) ??
+      element.ownerDocument.querySelector<HTMLElement>(selector);
+
+    if (!(candidate instanceof HTMLElement) || !isVisible(candidate)) {
+      continue;
+    }
+
+    if (isScrollContainerCandidate(candidate)) {
+      return candidate;
+    }
+  }
+
+  return findScrollContainer(element);
 };
 
 const createScrollTargets = (element: HTMLElement, documentRef: Document): Array<EventTarget> => {
@@ -135,7 +165,7 @@ const readCodeMirrorText = (element: HTMLElement): string => {
 
 const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
-  scrollElement: findScrollContainer(
+  scrollElement: findPreferredEditorScrollElement(
     element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
   ),
   ownerDocument: element.ownerDocument,
@@ -178,7 +208,7 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
     return () => element.removeEventListener('input', wrapped);
   },
   onScroll(listener: () => void) {
-    const scrollElement = findScrollContainer(
+    const scrollElement = findPreferredEditorScrollElement(
       element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
     );
     const targets = createScrollTargets(scrollElement, element.ownerDocument);
@@ -197,7 +227,7 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
 
 const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => ({
   element,
-  scrollElement: findScrollContainer(element),
+  scrollElement: findPreferredEditorScrollElement(element),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.value);
@@ -212,7 +242,7 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
     return () => element.removeEventListener('input', wrapped);
   },
   onScroll(listener: () => void) {
-    const scrollElement = findScrollContainer(element);
+    const scrollElement = findPreferredEditorScrollElement(element);
     const targets = createScrollTargets(scrollElement, element.ownerDocument);
 
     for (const target of targets) {
@@ -229,7 +259,7 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
 
 const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
-  scrollElement: findScrollContainer(element),
+  scrollElement: findPreferredEditorScrollElement(element),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.innerText || element.textContent || '');
@@ -244,7 +274,10 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
     return () => element.removeEventListener('input', wrapped);
   },
   onScroll(listener: () => void) {
-    const targets = createScrollTargets(findScrollContainer(element), element.ownerDocument);
+    const targets = createScrollTargets(
+      findPreferredEditorScrollElement(element),
+      element.ownerDocument
+    );
 
     for (const target of targets) {
       target.addEventListener('scroll', listener, { passive: true, capture: true });

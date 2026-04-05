@@ -40,9 +40,22 @@ export const createExtensionBootstrap = () => {
         preview.setTitle(title?.getValue() ?? '');
       };
 
+      const describeScrollElement = (element: HTMLElement) => ({
+        tagName: element.tagName,
+        id: element.id,
+        className: element.className,
+        scrollTop: element.scrollTop,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight
+      });
+
       syncTitle();
       syncPreview(editor.getMarkdown());
       preview.setVisible(currentState.previewEnabled);
+      console.info('[tistory-md] scroll endpoints detected', {
+        editor: describeScrollElement(editor.scrollElement),
+        preview: describeScrollElement(preview.scrollElement)
+      });
 
       const controls = createModeControls({
         initialState: currentState,
@@ -120,6 +133,10 @@ export const createExtensionBootstrap = () => {
           }
         );
         syncPreview(editor.getMarkdown());
+        console.info('[tistory-md] scroll endpoints rebound', {
+          editor: describeScrollElement(editor.scrollElement),
+          preview: describeScrollElement(preview.scrollElement)
+        });
       };
 
       let refreshScheduled = false;
