@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+MVP_REQUIREMENTS.md
+HUMAN_ON_THE_LOOP.md
+BRANCH_STRATEGY.md
+CONTEXT_HANDOFF.md
+IMPLEMENTATION_ROADMAP.md
+TEST_STRATEGY.md
+.codex/agents/*.toml
