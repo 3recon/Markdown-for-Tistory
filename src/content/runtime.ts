@@ -3,14 +3,18 @@ import type { EditorAdapter } from './editorAdapter';
 import { isLikelyTistoryEditorPage } from './tistoryPostIdentity';
 import { detectEditorAdapter } from './editorAdapter';
 import { createModeControls } from './modeControls';
+import { createTagPresetPanel } from './tagPresetPanel';
+import { detectTagAdapter, parseTagText } from './tagAdapter';
 import { detectTitleAdapter } from './titleAdapter';
 import { createPreviewPanel } from '../preview/previewPanel';
 import { attachBidirectionalScrollSync } from '../preview/scrollSync';
 import { createSettingsRepository } from '../storage/settingsRepository';
+import { createTagPresetRepository } from '../storage/tagPresetRepository';
 import { chromeLocalStorageDriver } from '../storage/storageDriver';
 
 export const createExtensionBootstrap = () => {
   const settingsRepository = createSettingsRepository(chromeLocalStorageDriver);
+  const tagPresetRepository = createTagPresetRepository(chromeLocalStorageDriver);
 
   return {
     async mount() {
@@ -25,12 +29,15 @@ export const createExtensionBootstrap = () => {
       }
 
       let editor: EditorAdapter = detectedEditor;
+      let tagAdapter = detectTagAdapter(document);
       const settings = await settingsRepository.getSettings();
+      let presets = await tagPresetRepository.list();
       const preview = createPreviewPanel();
       const title = detectTitleAdapter(document);
       let currentState = {
         previewEnabled: settings.previewEnabled
       };
+      let selectedPresetId: string | undefined;
 
       const syncPreview = (markdown: string) => {
         preview.setMarkdown(markdown);
@@ -68,6 +75,54 @@ export const createExtensionBootstrap = () => {
           }
         }
       });
+      const tagPresetPanel = createTagPresetPanel({
+        onLoadCurrentTags: () => {
+          return tagAdapter?.getTags() ?? [];
+        },
+        onSavePreset: async (input) => {
+          const name = input.name.trim();
+          const tags = parseTagText(input.tagsText);
+          if (!name || tags.length === 0) {
+            return;
+          }
+
+          const saved = await tagPresetRepository.save({
+            id: input.id,
+            name,
+            tags
+          });
+
+          selectedPresetId = saved.id;
+          presets = await tagPresetRepository.list();
+          syncTagPanel();
+        },
+        onApplyPreset: (id) => {
+          if (!tagAdapter) {
+            return;
+          }
+
+          const preset = presets.find((item) => item.id === id);
+          if (!preset) {
+            return;
+          }
+
+          selectedPresetId = preset.id;
+          tagAdapter.setTags(preset.tags);
+          syncTagPanel();
+        },
+        onEditPreset: (id) => {
+          selectedPresetId = id;
+        },
+        onDeletePreset: async (id) => {
+          await tagPresetRepository.remove(id);
+          if (selectedPresetId === id) {
+            selectedPresetId = undefined;
+          }
+
+          presets = await tagPresetRepository.list();
+          syncTagPanel();
+        }
+      });
 
       let scrollSync = attachBidirectionalScrollSync(
         {
@@ -85,6 +140,20 @@ export const createExtensionBootstrap = () => {
       let detachEditorInput = attachEditorInput(editor, () => {
         syncPreview(editor.getMarkdown());
       });
+      let detachTagInput = tagAdapter?.onInput(() => {
+        syncTagPanel();
+      }) ?? (() => undefined);
+
+      const syncTagPanel = () => {
+        tagPresetPanel.setState({
+          currentTags: tagAdapter?.getTags() ?? [],
+          presets,
+          selectedPresetId,
+          tagTargetAvailable: Boolean(tagAdapter)
+        });
+      };
+
+      syncTagPanel();
 
       const rebindEditor = (nextEditor = detectEditorAdapter(document)) => {
         if (!nextEditor) {
@@ -118,6 +187,20 @@ export const createExtensionBootstrap = () => {
         syncPreview(editor.getMarkdown());
       };
 
+      const rebindTagAdapter = (nextTagAdapter = detectTagAdapter(document)) => {
+        if (nextTagAdapter?.element === tagAdapter?.element) {
+          syncTagPanel();
+          return;
+        }
+
+        detachTagInput();
+        tagAdapter = nextTagAdapter;
+        detachTagInput = tagAdapter?.onInput(() => {
+          syncTagPanel();
+        }) ?? (() => undefined);
+        syncTagPanel();
+      };
+
       let refreshScheduled = false;
       const scheduleRefresh = () => {
         if (refreshScheduled) {
@@ -128,6 +211,7 @@ export const createExtensionBootstrap = () => {
         window.setTimeout(() => {
           refreshScheduled = false;
           rebindEditor();
+          rebindTagAdapter();
         }, 0);
       };
 
@@ -152,6 +236,7 @@ export const createExtensionBootstrap = () => {
         document.removeEventListener('change', scheduleRefresh, true);
         document.removeEventListener('click', scheduleRefresh, true);
         detachEditorInput();
+        detachTagInput();
         detachTitleInput();
         scrollSync.destroy();
       };
