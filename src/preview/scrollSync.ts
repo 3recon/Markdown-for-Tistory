@@ -47,6 +47,7 @@ export const attachBidirectionalScrollSync = (
   let ignoreTargetUntil = 0;
 
   const now = () => Date.now();
+  const canScroll = (element: ScrollLikeElement) => element.scrollHeight - element.clientHeight > EPSILON;
   const log = (direction: string, detail: Record<string, unknown>) => {
     console.info(`[tistory-md][scroll-sync] ${direction}`, detail);
   };
@@ -60,6 +61,17 @@ export const attachBidirectionalScrollSync = (
         ignoreSourceUntil,
         sourceScrollTop: source.element.scrollTop,
         targetScrollTop: target.element.scrollTop
+      });
+      return;
+    }
+
+    if (!canScroll(source.element)) {
+      log(`${source.name} -> ${target.name} skipped`, {
+        reason: 'source-not-scrollable',
+        currentTime,
+        sourceScrollTop: source.element.scrollTop,
+        sourceScrollHeight: source.element.scrollHeight,
+        sourceClientHeight: source.element.clientHeight
       });
       return;
     }
@@ -103,6 +115,17 @@ export const attachBidirectionalScrollSync = (
         ignoreTargetUntil,
         sourceScrollTop: source.element.scrollTop,
         targetScrollTop: target.element.scrollTop
+      });
+      return;
+    }
+
+    if (!canScroll(target.element)) {
+      log(`${target.name} -> ${source.name} skipped`, {
+        reason: 'target-not-scrollable',
+        currentTime,
+        targetScrollTop: target.element.scrollTop,
+        targetScrollHeight: target.element.scrollHeight,
+        targetClientHeight: target.element.clientHeight
       });
       return;
     }

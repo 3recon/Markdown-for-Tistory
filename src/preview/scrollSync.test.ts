@@ -83,4 +83,15 @@ describe('attachBidirectionalScrollSync', () => {
     target.emitScroll();
     expect(source.element.scrollTop).toBeCloseTo(200);
   });
+
+  it('does not reset the other side when the source cannot scroll', () => {
+    const source = createEndpoint(500, 500);
+    const target = createEndpoint(1200, 600);
+    attachBidirectionalScrollSync(source, target);
+
+    target.element.scrollTop = 240;
+    source.emitScroll();
+
+    expect(target.element.scrollTop).toBe(240);
+  });
 });
