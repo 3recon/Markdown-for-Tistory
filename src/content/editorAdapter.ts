@@ -72,8 +72,7 @@ const findScrollContainer = (element: HTMLElement): HTMLElement => {
 };
 
 const isScrollContainerCandidate = (element: HTMLElement): boolean => {
-  const style = window.getComputedStyle(element);
-  return /(auto|scroll|overlay)/.test(style.overflowY) || element.scrollHeight > element.clientHeight + 1;
+  return element.scrollHeight > element.clientHeight + 1;
 };
 
 const findPreferredEditorScrollElement = (element: HTMLElement): HTMLElement => {
