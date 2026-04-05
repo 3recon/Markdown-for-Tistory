@@ -35,6 +35,7 @@ export interface ModeControlsState {
 
 export interface ModeControlsController {
   setState(state: ModeControlsState): void;
+  reposition(): void;
 }
 
 const applyButtonState = (button: HTMLButtonElement, active: boolean) => {
@@ -95,14 +96,19 @@ export const createModeControls = (options: {
 
   root.append(previewButton);
 
-  const anchor = findModeDropdownAnchor();
-  if (anchor?.parentElement) {
-    root.setAttribute('style', inlineControlsStyle);
-    anchor.insertAdjacentElement('afterend', root);
-  } else {
+  const reposition = () => {
+    const anchor = findModeDropdownAnchor();
+    if (anchor?.parentElement) {
+      root.setAttribute('style', inlineControlsStyle);
+      anchor.insertAdjacentElement('afterend', root);
+      return;
+    }
+
     root.setAttribute('style', fixedControlsStyle);
     document.body.append(root);
-  }
+  };
+
+  reposition();
 
   const setState = (state: ModeControlsState) => {
     applyButtonState(previewButton, state.previewEnabled);
@@ -111,6 +117,7 @@ export const createModeControls = (options: {
   setState(options.initialState);
 
   return {
+    reposition,
     setState
   };
 };

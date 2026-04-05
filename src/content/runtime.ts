@@ -86,6 +86,7 @@ export const createExtensionBootstrap = () => {
           }
         }
       });
+      controls.reposition();
 
       let scrollSync = attachBidirectionalScrollSync(
         {
@@ -141,6 +142,7 @@ export const createExtensionBootstrap = () => {
         );
         syncPreview(editor.getMarkdown());
         syncPreviewLayout();
+        controls.reposition();
         console.warn('[tistory-md] scroll endpoints rebound', {
           editor: describeScrollElement(editor.scrollElement),
           preview: describeScrollElement(preview.scrollElement)
@@ -157,6 +159,7 @@ export const createExtensionBootstrap = () => {
         window.setTimeout(() => {
           refreshScheduled = false;
           rebindEditor();
+          controls.reposition();
         }, 0);
       };
 
