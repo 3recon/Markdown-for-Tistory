@@ -326,6 +326,27 @@ const createBody = (): HTMLDivElement => {
   const body = document.createElement('div');
   body.id = BODY_ID;
   body.setAttribute('style', bodyStyles);
+  body.tabIndex = 0;
+
+  body.addEventListener(
+    'wheel',
+    (event) => {
+      const maxScroll = Math.max(body.scrollHeight - body.clientHeight, 0);
+      if (maxScroll === 0) {
+        return;
+      }
+
+      const nextScrollTop = Math.min(Math.max(body.scrollTop + event.deltaY, 0), maxScroll);
+      if (Math.abs(nextScrollTop - body.scrollTop) < 1) {
+        return;
+      }
+
+      body.scrollTop = nextScrollTop;
+      event.preventDefault();
+    },
+    { passive: false }
+  );
+
   return body;
 };
 
