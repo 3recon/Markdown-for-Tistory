@@ -32,6 +32,7 @@ export interface ScrollLikeElement {
 export interface ScrollSyncEndpoint {
   name: string;
   element: ScrollLikeElement;
+  setScrollTop?(scrollTop: number): void;
   onScroll(listener: () => void): () => void;
 }
 
@@ -129,7 +130,7 @@ export const attachBidirectionalScrollSync = (
     });
 
     if (Math.abs(target.element.scrollTop - nextScrollTop) > EPSILON) {
-      target.element.scrollTop = nextScrollTop;
+      target.setScrollTop?.(nextScrollTop) ?? (target.element.scrollTop = nextScrollTop);
     }
     lastAppliedTargetScrollTop = nextScrollTop;
   };
@@ -199,7 +200,7 @@ export const attachBidirectionalScrollSync = (
     });
 
     if (Math.abs(source.element.scrollTop - nextScrollTop) > EPSILON) {
-      source.element.scrollTop = nextScrollTop;
+      source.setScrollTop?.(nextScrollTop) ?? (source.element.scrollTop = nextScrollTop);
     }
     lastAppliedSourceScrollTop = nextScrollTop;
   };

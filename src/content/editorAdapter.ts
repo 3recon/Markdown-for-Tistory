@@ -115,6 +115,7 @@ export interface EditorAdapter {
   ownerDocument: Document;
   getMarkdown(): string;
   setMarkdown(markdown: string): void;
+  setScrollTop(scrollTop: number): void;
   onInput(listener: () => void): () => void;
   onScroll(listener: () => void): () => void;
 }
@@ -162,6 +163,18 @@ const readCodeMirrorText = (element: HTMLElement): string => {
   return textarea?.value ?? '';
 };
 
+const setDocumentScrollTop = (documentRef: Document, scrollTop: number) => {
+  const scrollingElement = resolveDocumentScrollElement(documentRef);
+  if (scrollingElement) {
+    scrollingElement.scrollTop = scrollTop;
+  }
+
+  documentRef.defaultView?.scrollTo({
+    top: scrollTop,
+    behavior: 'auto'
+  });
+};
+
 const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
   scrollElement: findPreferredEditorScrollElement(
@@ -186,6 +199,14 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
     }
 
     dispatchSyntheticInput(element, markdown);
+  },
+  setScrollTop(scrollTop: number) {
+    const scrollElement = findPreferredEditorScrollElement(
+      element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
+    );
+
+    scrollElement.scrollTop = scrollTop;
+    setDocumentScrollTop(element.ownerDocument, scrollTop);
   },
   onInput(listener: () => void) {
     const instance = getCodeMirrorInstance(element);
@@ -235,6 +256,11 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
     element.value = markdown;
     element.dispatchEvent(new Event('input', { bubbles: true }));
   },
+  setScrollTop(scrollTop: number) {
+    const scrollElement = findPreferredEditorScrollElement(element);
+    scrollElement.scrollTop = scrollTop;
+    setDocumentScrollTop(element.ownerDocument, scrollTop);
+  },
   onInput(listener: () => void) {
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
@@ -266,6 +292,11 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
   setMarkdown(markdown: string) {
     element.textContent = markdown;
     dispatchSyntheticInput(element, markdown);
+  },
+  setScrollTop(scrollTop: number) {
+    const scrollElement = findPreferredEditorScrollElement(element);
+    scrollElement.scrollTop = scrollTop;
+    setDocumentScrollTop(element.ownerDocument, scrollTop);
   },
   onInput(listener: () => void) {
     const wrapped = () => listener();
@@ -300,6 +331,10 @@ const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): 
   setMarkdown(markdown: string) {
     body.textContent = markdown;
     dispatchSyntheticInput(body, markdown);
+  },
+  setScrollTop(scrollTop: number) {
+    const documentRef = iframe.contentDocument ?? body.ownerDocument;
+    setDocumentScrollTop(documentRef, scrollTop);
   },
   onInput(listener: () => void) {
     const wrapped = () => listener();

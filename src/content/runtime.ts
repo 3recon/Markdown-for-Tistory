@@ -86,6 +86,7 @@ export const createExtensionBootstrap = () => {
         {
           name: 'editor',
           element: editor.scrollElement,
+          setScrollTop: (scrollTop) => editor.setScrollTop(scrollTop),
           onScroll: (listener) => editor.onScroll(listener)
         },
         {
@@ -121,6 +122,7 @@ export const createExtensionBootstrap = () => {
           {
             name: 'editor',
             element: editor.scrollElement,
+            setScrollTop: (scrollTop) => editor.setScrollTop(scrollTop),
             onScroll: (listener) => editor.onScroll(listener)
           },
           {
