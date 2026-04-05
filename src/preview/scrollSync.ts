@@ -1,4 +1,5 @@
 const EPSILON = 1;
+const GUARD_WINDOW_MS = 80;
 
 export const computeScrollRatio = (
   scrollTop: number,
@@ -41,16 +42,17 @@ export const attachBidirectionalScrollSync = (
   source: ScrollSyncEndpoint,
   target: ScrollSyncEndpoint
 ): ScrollSyncController => {
-  let sourceGuard = false;
-  let targetGuard = false;
+  let ignoreSourceUntil = 0;
+  let ignoreTargetUntil = 0;
+
+  const now = () => Date.now();
 
   const syncToTarget = () => {
-    if (sourceGuard) {
-      sourceGuard = false;
+    if (now() < ignoreSourceUntil) {
       return;
     }
 
-    targetGuard = true;
+    ignoreTargetUntil = now() + GUARD_WINDOW_MS;
     const ratio = computeScrollRatio(
       source.element.scrollTop,
       source.element.scrollHeight,
@@ -68,12 +70,11 @@ export const attachBidirectionalScrollSync = (
   };
 
   const syncToSource = () => {
-    if (targetGuard) {
-      targetGuard = false;
+    if (now() < ignoreTargetUntil) {
       return;
     }
 
-    sourceGuard = true;
+    ignoreSourceUntil = now() + GUARD_WINDOW_MS;
     const ratio = computeScrollRatio(
       target.element.scrollTop,
       target.element.scrollHeight,
