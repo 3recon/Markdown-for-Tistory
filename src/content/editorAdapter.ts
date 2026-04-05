@@ -64,6 +64,22 @@ const findScrollContainer = (element: HTMLElement): HTMLElement => {
   return resolveDocumentScrollElement(element.ownerDocument) ?? element;
 };
 
+const createScrollTargets = (element: HTMLElement, documentRef: Document): Array<EventTarget> => {
+  const targets: Array<EventTarget> = [element];
+  const documentScrollElement = resolveDocumentScrollElement(documentRef);
+
+  if (documentScrollElement && documentScrollElement !== element) {
+    targets.push(documentScrollElement);
+  }
+
+  targets.push(documentRef);
+  if (documentRef.defaultView) {
+    targets.push(documentRef.defaultView);
+  }
+
+  return [...new Set(targets)];
+};
+
 export interface EditorAdapter {
   element: EditorElement;
   scrollElement: HTMLElement;
@@ -119,7 +135,9 @@ const readCodeMirrorText = (element: HTMLElement): string => {
 
 const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
-  scrollElement: element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element,
+  scrollElement: findScrollContainer(
+    element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
+  ),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(readCodeMirrorText(element));
@@ -160,15 +178,26 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
     return () => element.removeEventListener('input', wrapped);
   },
   onScroll(listener: () => void) {
-    const scrollElement = element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element;
-    scrollElement.addEventListener('scroll', listener);
-    return () => scrollElement.removeEventListener('scroll', listener);
+    const scrollElement = findScrollContainer(
+      element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
+    );
+    const targets = createScrollTargets(scrollElement, element.ownerDocument);
+
+    for (const target of targets) {
+      target.addEventListener('scroll', listener, { passive: true, capture: true });
+    }
+
+    return () => {
+      for (const target of targets) {
+        target.removeEventListener('scroll', listener, { capture: true });
+      }
+    };
   }
 });
 
 const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => ({
   element,
-  scrollElement: element,
+  scrollElement: findScrollContainer(element),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.value);
@@ -183,8 +212,18 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
     return () => element.removeEventListener('input', wrapped);
   },
   onScroll(listener: () => void) {
-    element.addEventListener('scroll', listener);
-    return () => element.removeEventListener('scroll', listener);
+    const scrollElement = findScrollContainer(element);
+    const targets = createScrollTargets(scrollElement, element.ownerDocument);
+
+    for (const target of targets) {
+      target.addEventListener('scroll', listener, { passive: true, capture: true });
+    }
+
+    return () => {
+      for (const target of targets) {
+        target.removeEventListener('scroll', listener, { capture: true });
+      }
+    };
   }
 });
 
@@ -205,16 +244,7 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
     return () => element.removeEventListener('input', wrapped);
   },
   onScroll(listener: () => void) {
-    const targets: Array<EventTarget> = [element];
-    const documentScrollElement = resolveDocumentScrollElement(element.ownerDocument);
-    if (documentScrollElement && documentScrollElement !== element) {
-      targets.push(documentScrollElement);
-    }
-
-    targets.push(element.ownerDocument);
-    if (element.ownerDocument.defaultView) {
-      targets.push(element.ownerDocument.defaultView);
-    }
+    const targets = createScrollTargets(findScrollContainer(element), element.ownerDocument);
 
     for (const target of targets) {
       target.addEventListener('scroll', listener, { passive: true, capture: true });
@@ -246,19 +276,8 @@ const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): 
   },
   onScroll(listener: () => void) {
     const documentRef = iframe.contentDocument ?? body.ownerDocument;
-    const targets: Array<EventTarget> = [];
     const documentScrollElement = resolveDocumentScrollElement(documentRef);
-
-    if (documentScrollElement) {
-      targets.push(documentScrollElement);
-    } else {
-      targets.push(body);
-    }
-
-    targets.push(documentRef);
-    if (documentRef.defaultView) {
-      targets.push(documentRef.defaultView);
-    }
+    const targets = createScrollTargets(documentScrollElement ?? body, documentRef);
 
     for (const target of targets) {
       target.addEventListener('scroll', listener, { passive: true, capture: true });
