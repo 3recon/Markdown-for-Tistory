@@ -4,6 +4,7 @@ const PANEL_ID = 'tistory-md-preview-panel';
 const BODY_ID = 'tistory-md-preview-body';
 const ARTICLE_TITLE_ID = 'tistory-md-preview-title';
 const CONTENT_ID = 'tistory-md-preview-content';
+const BOTTOM_SPACER_ID = 'tistory-md-preview-bottom-spacer';
 const STYLE_ID = 'tistory-md-preview-style';
 
 const panelStyles = `
@@ -28,7 +29,7 @@ const panelStyles = `
 
 const bodyStyles = `
   display: block;
-  padding: 300px 24px;
+  padding: 300px 24px 0;
   color: #333;
   line-height: 1.8;
   font-size: 16px;
@@ -348,6 +349,13 @@ const createContentRoot = (): HTMLDivElement => {
   return content;
 };
 
+const createBottomSpacer = (): HTMLDivElement => {
+  const spacer = document.createElement('div');
+  spacer.id = BOTTOM_SPACER_ID;
+  spacer.setAttribute('style', 'height: 300px;');
+  return spacer;
+};
+
 export const createPreviewPanel = (): PreviewPanelController => {
   ensurePreviewStyles();
 
@@ -356,8 +364,16 @@ export const createPreviewPanel = (): PreviewPanelController => {
     const body = existing.querySelector<HTMLElement>(`#${BODY_ID}`);
     const articleTitle = existing.querySelector<HTMLElement>(`#${ARTICLE_TITLE_ID}`);
     const content = existing.querySelector<HTMLElement>(`#${CONTENT_ID}`);
+    const spacer =
+      existing.querySelector<HTMLElement>(`#${BOTTOM_SPACER_ID}`) ??
+      createBottomSpacer();
+
     if (!body || !articleTitle || !content) {
       throw new Error('Preview panel exists without required elements.');
+    }
+
+    if (!spacer.isConnected) {
+      body.append(spacer);
     }
 
     return {
@@ -386,7 +402,8 @@ export const createPreviewPanel = (): PreviewPanelController => {
   const body = createBody();
   const articleTitle = createArticleTitle();
   const content = createContentRoot();
-  body.append(articleTitle, content);
+  const spacer = createBottomSpacer();
+  body.append(articleTitle, content, spacer);
 
   panel.append(body);
   document.body.append(panel);
