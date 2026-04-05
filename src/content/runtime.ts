@@ -69,7 +69,19 @@ export const createExtensionBootstrap = () => {
         }
       });
 
-      let scrollSync = attachBidirectionalScrollSync(editor.scrollElement, preview.body);
+      let scrollSync = attachBidirectionalScrollSync(
+        {
+          element: editor.scrollElement,
+          onScroll: (listener) => editor.onScroll(listener)
+        },
+        {
+          element: preview.body,
+          onScroll: (listener) => {
+            preview.body.addEventListener('scroll', listener, { passive: true });
+            return () => preview.body.removeEventListener('scroll', listener);
+          }
+        }
+      );
       let detachEditorInput = attachEditorInput(editor, () => {
         syncPreview(editor.getMarkdown());
       });
@@ -90,7 +102,19 @@ export const createExtensionBootstrap = () => {
         detachEditorInput = attachEditorInput(editor, () => {
           syncPreview(editor.getMarkdown());
         });
-        scrollSync = attachBidirectionalScrollSync(editor.scrollElement, preview.body);
+        scrollSync = attachBidirectionalScrollSync(
+          {
+            element: editor.scrollElement,
+            onScroll: (listener) => editor.onScroll(listener)
+          },
+          {
+            element: preview.body,
+            onScroll: (listener) => {
+              preview.body.addEventListener('scroll', listener, { passive: true });
+              return () => preview.body.removeEventListener('scroll', listener);
+            }
+          }
+        );
         syncPreview(editor.getMarkdown());
       };
 

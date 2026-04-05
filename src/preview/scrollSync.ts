@@ -26,8 +26,11 @@ export interface ScrollLikeElement {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
-  addEventListener(type: 'scroll', listener: () => void): void;
-  removeEventListener?(type: 'scroll', listener: () => void): void;
+}
+
+export interface ScrollSyncEndpoint {
+  element: ScrollLikeElement;
+  onScroll(listener: () => void): () => void;
 }
 
 export interface ScrollSyncController {
@@ -35,8 +38,8 @@ export interface ScrollSyncController {
 }
 
 export const attachBidirectionalScrollSync = (
-  source: ScrollLikeElement,
-  target: ScrollLikeElement
+  source: ScrollSyncEndpoint,
+  target: ScrollSyncEndpoint
 ): ScrollSyncController => {
   let sourceGuard = false;
   let targetGuard = false;
@@ -48,11 +51,19 @@ export const attachBidirectionalScrollSync = (
     }
 
     targetGuard = true;
-    const ratio = computeScrollRatio(source.scrollTop, source.scrollHeight, source.clientHeight);
-    const nextScrollTop = ratioToScrollTop(ratio, target.scrollHeight, target.clientHeight);
+    const ratio = computeScrollRatio(
+      source.element.scrollTop,
+      source.element.scrollHeight,
+      source.element.clientHeight
+    );
+    const nextScrollTop = ratioToScrollTop(
+      ratio,
+      target.element.scrollHeight,
+      target.element.clientHeight
+    );
 
-    if (Math.abs(target.scrollTop - nextScrollTop) > EPSILON) {
-      target.scrollTop = nextScrollTop;
+    if (Math.abs(target.element.scrollTop - nextScrollTop) > EPSILON) {
+      target.element.scrollTop = nextScrollTop;
     }
   };
 
@@ -63,21 +74,29 @@ export const attachBidirectionalScrollSync = (
     }
 
     sourceGuard = true;
-    const ratio = computeScrollRatio(target.scrollTop, target.scrollHeight, target.clientHeight);
-    const nextScrollTop = ratioToScrollTop(ratio, source.scrollHeight, source.clientHeight);
+    const ratio = computeScrollRatio(
+      target.element.scrollTop,
+      target.element.scrollHeight,
+      target.element.clientHeight
+    );
+    const nextScrollTop = ratioToScrollTop(
+      ratio,
+      source.element.scrollHeight,
+      source.element.clientHeight
+    );
 
-    if (Math.abs(source.scrollTop - nextScrollTop) > EPSILON) {
-      source.scrollTop = nextScrollTop;
+    if (Math.abs(source.element.scrollTop - nextScrollTop) > EPSILON) {
+      source.element.scrollTop = nextScrollTop;
     }
   };
 
-  source.addEventListener('scroll', syncToTarget);
-  target.addEventListener('scroll', syncToSource);
+  const detachSource = source.onScroll(syncToTarget);
+  const detachTarget = target.onScroll(syncToSource);
 
   return {
     destroy() {
-      source.removeEventListener?.('scroll', syncToTarget);
-      target.removeEventListener?.('scroll', syncToSource);
+      detachSource();
+      detachTarget();
     }
   };
 };

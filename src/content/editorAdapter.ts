@@ -71,6 +71,7 @@ export interface EditorAdapter {
   getMarkdown(): string;
   setMarkdown(markdown: string): void;
   onInput(listener: () => void): () => void;
+  onScroll(listener: () => void): () => void;
 }
 
 const isTextarea = (element: Element): element is HTMLTextAreaElement => {
@@ -157,6 +158,11 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
     return () => element.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const scrollElement = element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element;
+    scrollElement.addEventListener('scroll', listener);
+    return () => scrollElement.removeEventListener('scroll', listener);
   }
 });
 
@@ -175,6 +181,10 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
     return () => element.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    element.addEventListener('scroll', listener);
+    return () => element.removeEventListener('scroll', listener);
   }
 });
 
@@ -193,6 +203,28 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
     return () => element.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const targets: Array<EventTarget> = [element];
+    const documentScrollElement = resolveDocumentScrollElement(element.ownerDocument);
+    if (documentScrollElement && documentScrollElement !== element) {
+      targets.push(documentScrollElement);
+    }
+
+    targets.push(element.ownerDocument);
+    if (element.ownerDocument.defaultView) {
+      targets.push(element.ownerDocument.defaultView);
+    }
+
+    for (const target of targets) {
+      target.addEventListener('scroll', listener, { passive: true, capture: true });
+    }
+
+    return () => {
+      for (const target of targets) {
+        target.removeEventListener('scroll', listener, { capture: true });
+      }
+    };
   }
 });
 
@@ -211,6 +243,32 @@ const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): 
     const wrapped = () => listener();
     body.addEventListener('input', wrapped);
     return () => body.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const documentRef = iframe.contentDocument ?? body.ownerDocument;
+    const targets: Array<EventTarget> = [];
+    const documentScrollElement = resolveDocumentScrollElement(documentRef);
+
+    if (documentScrollElement) {
+      targets.push(documentScrollElement);
+    } else {
+      targets.push(body);
+    }
+
+    targets.push(documentRef);
+    if (documentRef.defaultView) {
+      targets.push(documentRef.defaultView);
+    }
+
+    for (const target of targets) {
+      target.addEventListener('scroll', listener, { passive: true, capture: true });
+    }
+
+    return () => {
+      for (const target of targets) {
+        target.removeEventListener('scroll', listener, { capture: true });
+      }
+    };
   }
 });
 
