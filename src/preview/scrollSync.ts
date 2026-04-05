@@ -45,9 +45,21 @@ export const attachBidirectionalScrollSync = (
 ): ScrollSyncController => {
   let ignoreSourceUntil = 0;
   let ignoreTargetUntil = 0;
+  let lastAppliedSourceScrollTop: number | null = null;
+  let lastAppliedTargetScrollTop: number | null = null;
 
   const now = () => Date.now();
   const canScroll = (element: ScrollLikeElement) => element.scrollHeight - element.clientHeight > EPSILON;
+  const isProgrammaticScroll = (
+    actualScrollTop: number,
+    lastAppliedScrollTop: number | null
+  ): boolean => {
+    if (lastAppliedScrollTop === null) {
+      return false;
+    }
+
+    return Math.abs(actualScrollTop - lastAppliedScrollTop) <= EPSILON;
+  };
   const log = (direction: string, detail: Record<string, unknown>) => {
     console.warn(`[tistory-md][scroll-sync] ${direction}`, detail);
   };
@@ -55,14 +67,29 @@ export const attachBidirectionalScrollSync = (
   const syncToTarget = () => {
     const currentTime = now();
     if (currentTime < ignoreSourceUntil) {
+      const programmatic = isProgrammaticScroll(
+        source.element.scrollTop,
+        lastAppliedSourceScrollTop
+      );
+      if (!programmatic) {
+        log(`${source.name} -> ${target.name} guard-bypassed`, {
+          reason: 'source-user-scroll-detected',
+          currentTime,
+          ignoreSourceUntil,
+          sourceScrollTop: source.element.scrollTop,
+          lastAppliedSourceScrollTop
+        });
+      } else {
       log(`${source.name} -> ${target.name} skipped`, {
         reason: 'source-guard',
         currentTime,
         ignoreSourceUntil,
         sourceScrollTop: source.element.scrollTop,
-        targetScrollTop: target.element.scrollTop
+        targetScrollTop: target.element.scrollTop,
+        lastAppliedSourceScrollTop
       });
-      return;
+        return;
+      }
     }
 
     if (!canScroll(source.element)) {
@@ -104,19 +131,35 @@ export const attachBidirectionalScrollSync = (
     if (Math.abs(target.element.scrollTop - nextScrollTop) > EPSILON) {
       target.element.scrollTop = nextScrollTop;
     }
+    lastAppliedTargetScrollTop = nextScrollTop;
   };
 
   const syncToSource = () => {
     const currentTime = now();
     if (currentTime < ignoreTargetUntil) {
+      const programmatic = isProgrammaticScroll(
+        target.element.scrollTop,
+        lastAppliedTargetScrollTop
+      );
+      if (!programmatic) {
+        log(`${target.name} -> ${source.name} guard-bypassed`, {
+          reason: 'target-user-scroll-detected',
+          currentTime,
+          ignoreTargetUntil,
+          targetScrollTop: target.element.scrollTop,
+          lastAppliedTargetScrollTop
+        });
+      } else {
       log(`${target.name} -> ${source.name} skipped`, {
         reason: 'target-guard',
         currentTime,
         ignoreTargetUntil,
         sourceScrollTop: source.element.scrollTop,
-        targetScrollTop: target.element.scrollTop
+        targetScrollTop: target.element.scrollTop,
+        lastAppliedTargetScrollTop
       });
-      return;
+        return;
+      }
     }
 
     if (!canScroll(target.element)) {
@@ -158,6 +201,7 @@ export const attachBidirectionalScrollSync = (
     if (Math.abs(source.element.scrollTop - nextScrollTop) > EPSILON) {
       source.element.scrollTop = nextScrollTop;
     }
+    lastAppliedSourceScrollTop = nextScrollTop;
   };
 
   const detachSource = source.onScroll(syncToTarget);

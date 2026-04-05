@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe('attachBidirectionalScrollSync', () => {
-  it('ignores duplicate opposite-side events within a short window', () => {
+  it('allows opposite-side scrolling when the position differs from the last applied value', () => {
     let now = 1_000;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
 
@@ -77,7 +77,7 @@ describe('attachBidirectionalScrollSync', () => {
 
     target.element.scrollTop = 240;
     target.emitScroll();
-    expect(source.element.scrollTop).toBe(0);
+    expect(source.element.scrollTop).toBeCloseTo(200);
 
     now += 300;
     target.emitScroll();
@@ -93,5 +93,23 @@ describe('attachBidirectionalScrollSync', () => {
     source.emitScroll();
 
     expect(target.element.scrollTop).toBe(240);
+  });
+
+  it('allows user scrolling on the guarded target side', () => {
+    let now = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+    const source = createEndpoint(1000, 500);
+    const target = createEndpoint(1200, 600);
+    attachBidirectionalScrollSync(source, target);
+
+    source.element.scrollTop = 250;
+    source.emitScroll();
+    expect(target.element.scrollTop).toBeCloseTo(300);
+
+    target.element.scrollTop = 360;
+    target.emitScroll();
+
+    expect(source.element.scrollTop).toBeCloseTo(300);
   });
 });
