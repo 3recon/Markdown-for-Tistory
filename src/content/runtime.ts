@@ -40,6 +40,10 @@ export const createExtensionBootstrap = () => {
         preview.setTitle(title?.getValue() ?? '');
       };
 
+      const syncPreviewLayout = () => {
+        preview.syncLayout(editor.scrollElement);
+      };
+
       const describeScrollElement = (element: HTMLElement) => ({
         tagName: element.tagName,
         id: element.id,
@@ -52,6 +56,7 @@ export const createExtensionBootstrap = () => {
       syncTitle();
       syncPreview(editor.getMarkdown());
       preview.setVisible(currentState.previewEnabled);
+      syncPreviewLayout();
       console.warn('[tistory-md] scroll endpoints detected', {
         editor: describeScrollElement(editor.scrollElement),
         preview: describeScrollElement(preview.scrollElement)
@@ -135,6 +140,7 @@ export const createExtensionBootstrap = () => {
           }
         );
         syncPreview(editor.getMarkdown());
+        syncPreviewLayout();
         console.warn('[tistory-md] scroll endpoints rebound', {
           editor: describeScrollElement(editor.scrollElement),
           preview: describeScrollElement(preview.scrollElement)
@@ -165,6 +171,7 @@ export const createExtensionBootstrap = () => {
 
       document.addEventListener('change', scheduleRefresh, true);
       document.addEventListener('click', scheduleRefresh, true);
+      window.addEventListener('resize', syncPreviewLayout);
 
       const detachTitleInput = title?.onInput(syncTitle) ?? (() => undefined);
 
@@ -174,6 +181,7 @@ export const createExtensionBootstrap = () => {
         editorObserver.disconnect();
         document.removeEventListener('change', scheduleRefresh, true);
         document.removeEventListener('click', scheduleRefresh, true);
+        window.removeEventListener('resize', syncPreviewLayout);
         detachEditorInput();
         detachTitleInput();
         scrollSync.destroy();

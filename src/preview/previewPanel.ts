@@ -62,10 +62,24 @@ export interface PreviewPanelController {
   element: HTMLElement;
   body: HTMLElement;
   scrollElement: HTMLElement;
+  syncLayout(anchor: HTMLElement): void;
   setTitle(title: string): void;
   setMarkdown(markdown: string): void;
   setVisible(visible: boolean): void;
 }
+
+const applyPanelLayout = (panel: HTMLElement, anchor: HTMLElement) => {
+  const rect = anchor.getBoundingClientRect();
+  const top = Math.max(rect.top, 24);
+  const bottomGap = 24;
+  const height = Math.max(
+    Math.min(rect.height, window.innerHeight - top - bottomGap),
+    320
+  );
+
+  panel.style.top = `${top}px`;
+  panel.style.height = `${height}px`;
+};
 
 const ensurePreviewStyles = () => {
   if (document.getElementById(STYLE_ID)) {
@@ -371,6 +385,9 @@ export const createPreviewPanel = (): PreviewPanelController => {
       element: existing,
       body,
       scrollElement: existing,
+      syncLayout(anchor: HTMLElement) {
+        applyPanelLayout(existing, anchor);
+      },
       setTitle(title: string) {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
@@ -414,6 +431,9 @@ export const createPreviewPanel = (): PreviewPanelController => {
     element: panel,
     body,
     scrollElement: panel,
+    syncLayout(anchor: HTMLElement) {
+      applyPanelLayout(panel, anchor);
+    },
     setTitle(title: string) {
       articleTitle.textContent = title || '제목을 입력하세요';
     },
