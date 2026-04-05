@@ -34,6 +34,7 @@ const createEndpoint = (
 ): ScrollSyncEndpoint & { emitScroll(): void } => {
   const listeners = new Set<() => void>();
   const endpoint: ScrollSyncEndpoint & { emitScroll(): void } = {
+    name: `endpoint-${scrollHeight}-${clientHeight}`,
     element: {
       scrollTop: 0,
       scrollHeight,

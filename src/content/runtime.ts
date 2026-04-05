@@ -71,10 +71,12 @@ export const createExtensionBootstrap = () => {
 
       let scrollSync = attachBidirectionalScrollSync(
         {
+          name: 'editor',
           element: editor.scrollElement,
           onScroll: (listener) => editor.onScroll(listener)
         },
         {
+          name: 'preview',
           element: preview.scrollElement,
           onScroll: (listener) => {
             preview.scrollElement.addEventListener('scroll', listener, { passive: true });
@@ -104,10 +106,12 @@ export const createExtensionBootstrap = () => {
         });
         scrollSync = attachBidirectionalScrollSync(
           {
+            name: 'editor',
             element: editor.scrollElement,
             onScroll: (listener) => editor.onScroll(listener)
           },
           {
+            name: 'preview',
             element: preview.scrollElement,
             onScroll: (listener) => {
               preview.scrollElement.addEventListener('scroll', listener, { passive: true });

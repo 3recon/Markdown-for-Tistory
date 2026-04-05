@@ -30,6 +30,7 @@ export interface ScrollLikeElement {
 }
 
 export interface ScrollSyncEndpoint {
+  name: string;
   element: ScrollLikeElement;
   onScroll(listener: () => void): () => void;
 }
@@ -46,13 +47,24 @@ export const attachBidirectionalScrollSync = (
   let ignoreTargetUntil = 0;
 
   const now = () => Date.now();
+  const log = (direction: string, detail: Record<string, unknown>) => {
+    console.info(`[tistory-md][scroll-sync] ${direction}`, detail);
+  };
 
   const syncToTarget = () => {
-    if (now() < ignoreSourceUntil) {
+    const currentTime = now();
+    if (currentTime < ignoreSourceUntil) {
+      log(`${source.name} -> ${target.name} skipped`, {
+        reason: 'source-guard',
+        currentTime,
+        ignoreSourceUntil,
+        sourceScrollTop: source.element.scrollTop,
+        targetScrollTop: target.element.scrollTop
+      });
       return;
     }
 
-    ignoreTargetUntil = now() + GUARD_WINDOW_MS;
+    ignoreTargetUntil = currentTime + GUARD_WINDOW_MS;
     const ratio = computeScrollRatio(
       source.element.scrollTop,
       source.element.scrollHeight,
@@ -64,17 +76,38 @@ export const attachBidirectionalScrollSync = (
       target.element.clientHeight
     );
 
+    log(`${source.name} -> ${target.name}`, {
+      currentTime,
+      ratio,
+      sourceScrollTop: source.element.scrollTop,
+      sourceScrollHeight: source.element.scrollHeight,
+      sourceClientHeight: source.element.clientHeight,
+      targetScrollTop: target.element.scrollTop,
+      targetScrollHeight: target.element.scrollHeight,
+      targetClientHeight: target.element.clientHeight,
+      nextScrollTop,
+      ignoreTargetUntil
+    });
+
     if (Math.abs(target.element.scrollTop - nextScrollTop) > EPSILON) {
       target.element.scrollTop = nextScrollTop;
     }
   };
 
   const syncToSource = () => {
-    if (now() < ignoreTargetUntil) {
+    const currentTime = now();
+    if (currentTime < ignoreTargetUntil) {
+      log(`${target.name} -> ${source.name} skipped`, {
+        reason: 'target-guard',
+        currentTime,
+        ignoreTargetUntil,
+        sourceScrollTop: source.element.scrollTop,
+        targetScrollTop: target.element.scrollTop
+      });
       return;
     }
 
-    ignoreSourceUntil = now() + GUARD_WINDOW_MS;
+    ignoreSourceUntil = currentTime + GUARD_WINDOW_MS;
     const ratio = computeScrollRatio(
       target.element.scrollTop,
       target.element.scrollHeight,
@@ -85,6 +118,19 @@ export const attachBidirectionalScrollSync = (
       source.element.scrollHeight,
       source.element.clientHeight
     );
+
+    log(`${target.name} -> ${source.name}`, {
+      currentTime,
+      ratio,
+      sourceScrollTop: source.element.scrollTop,
+      sourceScrollHeight: source.element.scrollHeight,
+      sourceClientHeight: source.element.clientHeight,
+      targetScrollTop: target.element.scrollTop,
+      targetScrollHeight: target.element.scrollHeight,
+      targetClientHeight: target.element.clientHeight,
+      nextScrollTop,
+      ignoreSourceUntil
+    });
 
     if (Math.abs(source.element.scrollTop - nextScrollTop) > EPSILON) {
       source.element.scrollTop = nextScrollTop;
