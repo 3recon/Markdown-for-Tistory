@@ -10,7 +10,7 @@ const panelStyles = `
   position: fixed;
   top: 24px;
   right: 24px;
-  width: min(42vw, 680px);
+  width: min(46vw, 760px);
   height: calc(100vh - 48px);
   display: block;
   min-height: 0;
@@ -28,34 +28,13 @@ const panelStyles = `
 
 const bodyStyles = `
   display: block;
-  padding: 20px 20px 50px;
+  padding: 24px 24px 56px;
   color: #333;
   line-height: 1.8;
   font-size: 16px;
   background: #ffffff;
   word-wrap: break-word;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", Arial, sans-serif;
-`;
-
-const headerStyles = `
-  position: sticky;
-  top: 0;
-  height: 58px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.98);
-`;
-
-const titleStyles = `
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b7280;
 `;
 
 export interface PreviewPanelController {
@@ -404,27 +383,12 @@ export const createPreviewPanel = (): PreviewPanelController => {
   panel.id = PANEL_ID;
   panel.setAttribute('style', panelStyles);
 
-  const header = document.createElement('header');
-  header.setAttribute('style', headerStyles);
-
-  const title = document.createElement('h2');
-  title.textContent = 'Preview';
-  title.setAttribute('style', titleStyles);
-
-  const status = document.createElement('span');
-  status.textContent = 'Live';
-  status.setAttribute(
-    'style',
-    'font-size: 12px; color: #065f46; background: #d1fae5; border-radius: 999px; padding: 4px 8px;'
-  );
-
   const body = createBody();
   const articleTitle = createArticleTitle();
   const content = createContentRoot();
   body.append(articleTitle, content);
 
-  header.append(title, status);
-  panel.append(header, body);
+  panel.append(body);
   document.body.append(panel);
 
   return {
