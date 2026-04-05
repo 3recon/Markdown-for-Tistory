@@ -78,7 +78,7 @@ describe('attachBidirectionalScrollSync', () => {
     target.emitScroll();
     expect(source.element.scrollTop).toBe(0);
 
-    now += 120;
+    now += 300;
     target.emitScroll();
     expect(source.element.scrollTop).toBeCloseTo(200);
   });

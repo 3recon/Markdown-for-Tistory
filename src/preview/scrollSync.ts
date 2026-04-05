@@ -1,5 +1,5 @@
 const EPSILON = 1;
-const GUARD_WINDOW_MS = 80;
+const GUARD_WINDOW_MS = 240;
 
 export const computeScrollRatio = (
   scrollTop: number,
