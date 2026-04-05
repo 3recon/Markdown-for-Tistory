@@ -10,7 +10,7 @@ const panelStyles = `
   position: fixed;
   top: 24px;
   right: 24px;
-  width: min(46vw, 760px);
+  width: min(38vw, 760px);
   height: calc(100vh - 48px);
   display: block;
   min-height: 0;
