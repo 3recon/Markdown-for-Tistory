@@ -18,24 +18,16 @@ const panelStyles = `
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   z-index: 2147483000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 `;
 
 const bodyStyles = `
-  position: absolute;
-  top: 58px;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  min-height: 0;
-  overflow: auto;
-  overflow-x: hidden;
-  overflow-y: scroll;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  display: block;
   padding: 20px 20px 50px;
   color: #333;
   line-height: 1.8;
@@ -46,6 +38,8 @@ const bodyStyles = `
 `;
 
 const headerStyles = `
+  position: sticky;
+  top: 0;
   height: 58px;
   display: flex;
   align-items: center;
@@ -67,6 +61,7 @@ const titleStyles = `
 export interface PreviewPanelController {
   element: HTMLElement;
   body: HTMLElement;
+  scrollElement: HTMLElement;
   setTitle(title: string): void;
   setMarkdown(markdown: string): void;
   setVisible(visible: boolean): void;
@@ -331,67 +326,8 @@ const createBody = (): HTMLDivElement => {
   const body = document.createElement('div');
   body.id = BODY_ID;
   body.setAttribute('style', bodyStyles);
-  body.tabIndex = 0;
-
-  body.addEventListener(
-    'wheel',
-    (event) => {
-      const maxScroll = Math.max(body.scrollHeight - body.clientHeight, 0);
-      if (maxScroll === 0) {
-        return;
-      }
-
-      const nextScrollTop = Math.min(Math.max(body.scrollTop + event.deltaY, 0), maxScroll);
-      if (Math.abs(nextScrollTop - body.scrollTop) < 1) {
-        return;
-      }
-
-      body.scrollTop = nextScrollTop;
-      event.preventDefault();
-    },
-    { passive: false }
-  );
 
   return body;
-};
-
-const attachPanelWheelProxy = (panel: HTMLElement, body: HTMLElement) => {
-  panel.addEventListener(
-    'wheel',
-    (event) => {
-      const target = event.target;
-      if (!(target instanceof Node) || !panel.contains(target)) {
-        return;
-      }
-
-      const interactiveScrollable = target instanceof HTMLElement
-        ? target.closest('pre, table, [data-preview-scroll-ignore]')
-        : null;
-      if (interactiveScrollable instanceof HTMLElement) {
-        const canScrollInternally =
-          interactiveScrollable.scrollHeight > interactiveScrollable.clientHeight + 1 ||
-          interactiveScrollable.scrollWidth > interactiveScrollable.clientWidth + 1;
-
-        if (canScrollInternally) {
-          return;
-        }
-      }
-
-      const maxScroll = Math.max(body.scrollHeight - body.clientHeight, 0);
-      if (maxScroll === 0) {
-        return;
-      }
-
-      const nextScrollTop = Math.min(Math.max(body.scrollTop + event.deltaY, 0), maxScroll);
-      if (Math.abs(nextScrollTop - body.scrollTop) < 1) {
-        return;
-      }
-
-      body.scrollTop = nextScrollTop;
-      event.preventDefault();
-    },
-    { passive: false, capture: true }
-  );
 };
 
 const createArticleTitle = (): HTMLHeadingElement => {
@@ -431,14 +367,10 @@ export const createPreviewPanel = (): PreviewPanelController => {
       throw new Error('Preview panel exists without required elements.');
     }
 
-    if (!existing.dataset.wheelProxyBound) {
-      attachPanelWheelProxy(existing, body);
-      existing.dataset.wheelProxyBound = 'true';
-    }
-
     return {
       element: existing,
       body,
+      scrollElement: existing,
       setTitle(title: string) {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
@@ -473,8 +405,6 @@ export const createPreviewPanel = (): PreviewPanelController => {
   const articleTitle = createArticleTitle();
   const content = createContentRoot();
   body.append(articleTitle, content);
-  attachPanelWheelProxy(panel, body);
-  panel.dataset.wheelProxyBound = 'true';
 
   header.append(title, status);
   panel.append(header, body);
@@ -483,6 +413,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
   return {
     element: panel,
     body,
+    scrollElement: panel,
     setTitle(title: string) {
       articleTitle.textContent = title || '제목을 입력하세요';
     },

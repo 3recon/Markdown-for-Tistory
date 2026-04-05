@@ -75,10 +75,10 @@ export const createExtensionBootstrap = () => {
           onScroll: (listener) => editor.onScroll(listener)
         },
         {
-          element: preview.body,
+          element: preview.scrollElement,
           onScroll: (listener) => {
-            preview.body.addEventListener('scroll', listener, { passive: true });
-            return () => preview.body.removeEventListener('scroll', listener);
+            preview.scrollElement.addEventListener('scroll', listener, { passive: true });
+            return () => preview.scrollElement.removeEventListener('scroll', listener);
           }
         }
       );
@@ -108,10 +108,10 @@ export const createExtensionBootstrap = () => {
             onScroll: (listener) => editor.onScroll(listener)
           },
           {
-            element: preview.body,
+            element: preview.scrollElement,
             onScroll: (listener) => {
-              preview.body.addEventListener('scroll', listener, { passive: true });
-              return () => preview.body.removeEventListener('scroll', listener);
+              preview.scrollElement.addEventListener('scroll', listener, { passive: true });
+              return () => preview.scrollElement.removeEventListener('scroll', listener);
             }
           }
         );
