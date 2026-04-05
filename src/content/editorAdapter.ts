@@ -3,6 +3,7 @@ import { normalizeMarkdownSource } from '../preview/normalizeMarkdownSource';
 const CONTENTEDITABLE_SELECTOR = '[contenteditable]:not([contenteditable="false"])';
 
 const EDITOR_SELECTORS = [
+  '.CodeMirror',
   '.CodeMirror textarea',
   '.tt-editor textarea',
   '.tt_editor textarea',
@@ -15,8 +16,16 @@ const EDITOR_SELECTORS = [
 
 type EditorElement = HTMLTextAreaElement | HTMLElement;
 
+interface CodeMirrorLike {
+  getValue(): string;
+  setValue(markdown: string): void;
+  on(event: 'change', listener: () => void): void;
+  off?(event: 'change', listener: () => void): void;
+}
+
 export interface EditorAdapter {
   element: EditorElement;
+  scrollElement: HTMLElement;
   ownerDocument: Document;
   getMarkdown(): string;
   setMarkdown(markdown: string): void;
@@ -27,8 +36,92 @@ const isTextarea = (element: Element): element is HTMLTextAreaElement => {
   return element instanceof HTMLTextAreaElement;
 };
 
+const dispatchSyntheticInput = (target: HTMLElement | HTMLTextAreaElement, data: string) => {
+  target.dispatchEvent(new InputEvent('input', { bubbles: true, data }));
+};
+
+const hasCodeMirrorClass = (element: Element): element is HTMLElement => {
+  return element instanceof HTMLElement && element.classList.contains('CodeMirror');
+};
+
+const getCodeMirrorInstance = (element: HTMLElement): CodeMirrorLike | null => {
+  const maybeInstance = (element as HTMLElement & { CodeMirror?: CodeMirrorLike }).CodeMirror;
+  if (
+    maybeInstance &&
+    typeof maybeInstance.getValue === 'function' &&
+    typeof maybeInstance.setValue === 'function' &&
+    typeof maybeInstance.on === 'function'
+  ) {
+    return maybeInstance;
+  }
+
+  return null;
+};
+
+const readCodeMirrorText = (element: HTMLElement): string => {
+  const instance = getCodeMirrorInstance(element);
+  if (instance) {
+    return instance.getValue();
+  }
+
+  const lineElements = [...element.querySelectorAll<HTMLElement>('.CodeMirror-code pre')];
+  if (lineElements.length > 0) {
+    return lineElements
+      .map((lineElement) => lineElement.textContent ?? '')
+      .join('\n');
+  }
+
+  const textarea = element.querySelector<HTMLTextAreaElement>('textarea');
+  return textarea?.value ?? '';
+};
+
+const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
+  element,
+  scrollElement: element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element,
+  ownerDocument: element.ownerDocument,
+  getMarkdown() {
+    return normalizeMarkdownSource(readCodeMirrorText(element));
+  },
+  setMarkdown(markdown: string) {
+    const instance = getCodeMirrorInstance(element);
+    if (instance) {
+      instance.setValue(markdown);
+      return;
+    }
+
+    const textarea = element.querySelector<HTMLTextAreaElement>('textarea');
+    if (textarea) {
+      textarea.value = markdown;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+
+    dispatchSyntheticInput(element, markdown);
+  },
+  onInput(listener: () => void) {
+    const instance = getCodeMirrorInstance(element);
+    if (instance) {
+      const wrapped = () => listener();
+      instance.on('change', wrapped);
+      return () => instance.off?.('change', wrapped);
+    }
+
+    const textarea = element.querySelector<HTMLTextAreaElement>('textarea');
+    if (textarea) {
+      const wrapped = () => listener();
+      textarea.addEventListener('input', wrapped);
+      return () => textarea.removeEventListener('input', wrapped);
+    }
+
+    const wrapped = () => listener();
+    element.addEventListener('input', wrapped);
+    return () => element.removeEventListener('input', wrapped);
+  }
+});
+
 const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => ({
   element,
+  scrollElement: element,
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.value);
@@ -46,13 +139,14 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
 
 const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
+  scrollElement: element,
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.innerText || element.textContent || '');
   },
   setMarkdown(markdown: string) {
     element.textContent = markdown;
-    element.dispatchEvent(new InputEvent('input', { bubbles: true, data: markdown }));
+    dispatchSyntheticInput(element, markdown);
   },
   onInput(listener: () => void) {
     const wrapped = () => listener();
@@ -63,13 +157,14 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
 
 const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): EditorAdapter => ({
   element: body,
+  scrollElement: body,
   ownerDocument: iframe.contentDocument ?? body.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(body.innerText || body.textContent || '');
   },
   setMarkdown(markdown: string) {
     body.textContent = markdown;
-    body.dispatchEvent(new InputEvent('input', { bubbles: true, data: markdown }));
+    dispatchSyntheticInput(body, markdown);
   },
   onInput(listener: () => void) {
     const wrapped = () => listener();
@@ -120,6 +215,10 @@ const scoreCandidate = (element: HTMLElement): number => {
     score += 20;
   }
 
+  if (hasCodeMirrorClass(element)) {
+    score += 140;
+  }
+
   if (element.isContentEditable) {
     score += 12;
   }
@@ -153,6 +252,10 @@ const toAdapter = (candidate: Element | null): EditorAdapter | null => {
     return null;
   }
 
+  if (hasCodeMirrorClass(candidate)) {
+    return createCodeMirrorAdapter(candidate);
+  }
+
   if (isTextarea(candidate)) {
     return createTextareaAdapter(candidate);
   }
@@ -167,7 +270,7 @@ const toAdapter = (candidate: Element | null): EditorAdapter | null => {
 export const detectEditorAdapter = (documentRef: Document): EditorAdapter | null => {
   const iframe = documentRef.querySelector<HTMLIFrameElement>('#editor-tistory_ifr');
   const iframeBody = iframe?.contentDocument?.querySelector<HTMLElement>('body#tinymce');
-  if (iframe && iframeBody) {
+  if (iframe && iframeBody && isVisible(iframe)) {
     return createIframeBodyAdapter(iframe, iframeBody);
   }
 

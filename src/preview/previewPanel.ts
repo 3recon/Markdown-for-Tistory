@@ -3,6 +3,7 @@ import { renderMarkdown } from './renderMarkdown';
 const PANEL_ID = 'tistory-md-preview-panel';
 const BODY_ID = 'tistory-md-preview-body';
 const ARTICLE_TITLE_ID = 'tistory-md-preview-title';
+const CONTENT_ID = 'tistory-md-preview-content';
 const STYLE_ID = 'tistory-md-preview-style';
 
 const panelStyles = `
@@ -13,25 +14,31 @@ const panelStyles = `
   height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(15, 23, 42, 0.12);
+  min-height: 0;
+  border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 16px;
-  background: #fffdf8;
-  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
   overflow: hidden;
   z-index: 2147483000;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 `;
 
 const bodyStyles = `
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 24px 28px 48px;
-  color: #1f2937;
-  line-height: 1.7;
-  font-size: 15px;
-  background:
-    radial-gradient(circle at top right, rgba(252, 211, 77, 0.16), transparent 28%),
-    linear-gradient(180deg, #fffdf8 0%, #fffaf0 100%);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 20px 50px;
+  color: #333;
+  line-height: 1.8;
+  font-size: 16px;
+  background: #ffffff;
+  word-wrap: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", Arial, sans-serif;
 `;
 
 const headerStyles = `
@@ -41,8 +48,7 @@ const headerStyles = `
   gap: 12px;
   padding: 14px 18px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.98);
 `;
 
 const titleStyles = `
@@ -50,7 +56,7 @@ const titleStyles = `
   font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #92400e;
+  color: #6b7280;
 `;
 
 export interface PreviewPanelController {
@@ -73,136 +79,242 @@ const ensurePreviewStyles = () => {
       box-sizing: border-box;
     }
 
-    #${BODY_ID} p {
-      display: block !important;
-      margin: 0 0 1em !important;
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style {
+      margin-bottom: 12px;
+      color: #333;
+      font-size: 16px;
+      line-height: 1.875;
+      word-break: break-word;
     }
 
-    #${BODY_ID} h1,
-    #${BODY_ID} h2,
-    #${BODY_ID} h3,
-    #${BODY_ID} h4,
-    #${BODY_ID} h5,
-    #${BODY_ID} h6 {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style > * {
+      margin: 20px 0 0 0 !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style > :first-child {
+      margin-top: 0 !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style p {
       display: block !important;
-      margin: 1.4em 0 0.6em !important;
-      line-height: 1.25 !important;
-      color: #111827 !important;
+      margin-bottom: 1.25em !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h1,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h2,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h3,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h4 {
+      display: block !important;
+      margin-bottom: 24px !important;
+      font-weight: 900 !important;
+      color: rgba(0, 0, 0, 0.87) !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h1 {
+      font-size: 32px !important;
+      line-height: 1.33 !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h2 {
+      font-size: 1.5em !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h3 {
+      font-size: 1.25em !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h5,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style h6 {
+      display: block !important;
+      color: rgba(0, 0, 0, 0.87) !important;
       font-weight: 700 !important;
     }
 
-    #${BODY_ID} h1 {
-      font-size: 2em !important;
-    }
-
-    #${BODY_ID} h2 {
-      font-size: 1.6em !important;
-    }
-
-    #${BODY_ID} h3 {
-      font-size: 1.3em !important;
-    }
-
-    #${BODY_ID} ul,
-    #${BODY_ID} ol {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ul,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ol {
       display: block !important;
-      margin: 0 0 1em !important;
-      padding-left: 1.6em !important;
+      margin: 0 0 1.25em !important;
+      padding-left: 1.8em !important;
       list-style-position: outside !important;
     }
 
-    #${BODY_ID} ul {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ul {
       list-style: disc !important;
     }
 
-    #${BODY_ID} ol {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ol {
       list-style: decimal !important;
     }
 
-    #${BODY_ID} li {
-      margin: 0.25em 0 !important;
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style li {
+      margin: 0.3em 0 !important;
       display: list-item !important;
       list-style: inherit !important;
     }
 
-    #${BODY_ID} li > ul,
-    #${BODY_ID} li > ol {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style input[type="checkbox"] {
+      appearance: auto !important;
+      -webkit-appearance: checkbox !important;
+      display: inline-block !important;
+      width: 13px !important;
+      height: 13px !important;
+      margin: 0 0.35em 0 0 !important;
+      vertical-align: baseline !important;
+      accent-color: #2563eb !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: none !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style input[type="checkbox"][disabled] {
+      cursor: default !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style li > ul,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style li > ol {
       margin: 0.35em 0 0.35em !important;
       padding-left: 1.4em !important;
     }
 
-    #${BODY_ID} em {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ul ul,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ol ul {
+      list-style-type: circle !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ul ul ul,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ol ul ul,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style ul ol ul {
+      list-style-type: square !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style em {
       font-style: italic !important;
     }
 
-    #${BODY_ID} strong {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style strong {
       font-weight: 700 !important;
     }
 
-    #${BODY_ID} code {
-      font-family: 'Consolas', 'Courier New', monospace !important;
-      font-size: 0.92em !important;
-      background: rgba(15, 23, 42, 0.06) !important;
-      padding: 0.15em 0.35em !important;
-      border-radius: 6px !important;
-    }
-
-    #${BODY_ID} pre {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style pre {
       display: block !important;
-      margin: 0 0 1.25em !important;
-      padding: 16px !important;
-      overflow: auto !important;
-      border-radius: 12px !important;
-      background: #111827 !important;
-      color: #f9fafb !important;
-    }
-
-    #${BODY_ID} pre code {
-      background: transparent !important;
+      margin: 20px 0 0 !important;
       padding: 0 !important;
-      color: inherit !important;
+      overflow: auto !important;
+      border-radius: 0 !important;
+      background: rgba(0, 0, 0, 0.05) !important;
+      color: rgba(34, 85, 51, 0.87) !important;
+      border: 0 none !important;
+      font-family: monospace, monospace !important;
+      font-size: 16px !important;
+      line-height: 18.4px !important;
     }
 
-    #${BODY_ID} table {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style pre code {
+      background: rgb(250, 250, 250) !important;
+      padding: 20px !important;
+      color: rgb(56, 58, 66) !important;
+      display: block !important;
+      line-height: 23.94px !important;
+      font-size: 14px !important;
+      border: 1px solid rgb(235, 235, 235) !important;
+      font-family: "SF Mono", Menlo, Consolas, Monaco, monospace !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style .hljs {
+      color: rgb(56, 58, 66) !important;
+      background: rgb(250, 250, 250) !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style .hljs-built_in,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style .hljs-keyword {
+      color: #005cc5 !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style .hljs-string {
+      color: #0a7f3f !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style table {
       display: table !important;
-      width: 100% !important;
-      margin: 0 0 1.25em !important;
+      width: auto !important;
+      max-width: 100% !important;
+      margin: 20px 0 0 0 !important;
       border-collapse: collapse !important;
-      table-layout: fixed !important;
+      table-layout: auto !important;
+      border-color: #ddd !important;
     }
 
-    #${BODY_ID} th,
-    #${BODY_ID} td {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style th,
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style td {
       display: table-cell !important;
-      border: 1px solid rgba(15, 23, 42, 0.14) !important;
-      padding: 10px 12px !important;
+      border: 1px solid #ddd !important;
       text-align: left !important;
-      vertical-align: top !important;
+      vertical-align: middle !important;
       word-break: break-word !important;
     }
 
-    #${BODY_ID} th {
-      background: rgba(146, 64, 14, 0.08) !important;
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style thead tr {
+      background: rgba(0, 0, 0, 0.05) !important;
+      font-size: 16px !important;
+      color: #000 !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style th {
+      padding: 7px !important;
       font-weight: 700 !important;
+      color: inherit !important;
+      font-size: 16px !important;
+      line-height: 18.4px !important;
+      text-align: center !important;
     }
 
-    #${BODY_ID} blockquote {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style td {
+      padding: 8px !important;
+      font-size: 15px !important;
+      line-height: 17.25px !important;
+      color: #333 !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style th[align="center"],
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style td[align="center"] {
+      text-align: center !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style th[align="right"],
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style td[align="right"] {
+      text-align: right !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style blockquote[data-ke-style="style1"] {
       display: block !important;
-      margin: 0 0 1.25em !important;
-      padding: 0.2em 0 0.2em 1em !important;
-      border-left: 4px solid rgba(146, 64, 14, 0.45) !important;
-      color: #4b5563 !important;
+      margin: 20px auto 0 !important;
+      padding: 34px 0 0 0 !important;
+      text-align: center !important;
+      background: url("https://t1.daumcdn.net/tistory_admin/static/image/blockquote-style1.svg") no-repeat 50% 0 !important;
+      border: 0 none !important;
+      font-family: 'Noto Serif KR', serif !important;
+      font-size: 15pt !important;
+      color: #333 !important;
+      line-height: 1.67 !important;
     }
 
-    #${BODY_ID} hr {
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style blockquote[data-ke-style="style1"] p {
+      margin: 0 !important;
+      font-family: inherit !important;
+      font-size: inherit !important;
+      color: inherit !important;
+      line-height: inherit !important;
+    }
+
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style hr {
       display: block !important;
       border: 0 !important;
-      border-top: 1px solid rgba(15, 23, 42, 0.12) !important;
-      margin: 1.5em 0 !important;
+      border-top: 1px solid #e5e7eb !important;
+      margin: 1.75em 0 !important;
     }
 
-    #${BODY_ID} a {
-      color: #9a3412 !important;
+    #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style a {
+      color: #3b82f6 !important;
       text-decoration: underline !important;
     }
   `;
@@ -214,7 +326,6 @@ const createBody = (): HTMLDivElement => {
   const body = document.createElement('div');
   body.id = BODY_ID;
   body.setAttribute('style', bodyStyles);
-  body.innerHTML = '<p>Markdown preview will appear here.</p>';
   return body;
 };
 
@@ -225,15 +336,22 @@ const createArticleTitle = (): HTMLHeadingElement => {
     'style',
     [
       'margin: 0 0 24px',
-      'font-size: 34px',
-      'line-height: 1.2',
-      'font-weight: 700',
-      'color: #111827',
-      'letter-spacing: -0.03em'
+      'font-size: 32px',
+      'line-height: 1.33',
+      'font-weight: 900',
+      'color: rgba(0, 0, 0, 0.87)'
     ].join('; ')
   );
   title.textContent = '제목을 입력하세요';
   return title;
+};
+
+const createContentRoot = (): HTMLDivElement => {
+  const content = document.createElement('div');
+  content.id = CONTENT_ID;
+  content.className = 'article-view tt_article_useless_p_margin contents_style';
+  content.innerHTML = '<p>Markdown preview will appear here.</p>';
+  return content;
 };
 
 export const createPreviewPanel = (): PreviewPanelController => {
@@ -243,7 +361,8 @@ export const createPreviewPanel = (): PreviewPanelController => {
   if (existing) {
     const body = existing.querySelector<HTMLElement>(`#${BODY_ID}`);
     const articleTitle = existing.querySelector<HTMLElement>(`#${ARTICLE_TITLE_ID}`);
-    if (!body || !articleTitle) {
+    const content = existing.querySelector<HTMLElement>(`#${CONTENT_ID}`);
+    if (!body || !articleTitle || !content) {
       throw new Error('Preview panel exists without required elements.');
     }
 
@@ -254,7 +373,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
       setMarkdown(markdown: string) {
-        body.innerHTML = renderMarkdown(markdown);
+        content.innerHTML = renderMarkdown(markdown);
       },
       setVisible(visible: boolean) {
         existing.style.display = visible ? 'flex' : 'none';
@@ -282,7 +401,8 @@ export const createPreviewPanel = (): PreviewPanelController => {
 
   const body = createBody();
   const articleTitle = createArticleTitle();
-  body.prepend(articleTitle);
+  const content = createContentRoot();
+  body.append(articleTitle, content);
 
   header.append(title, status);
   panel.append(header, body);
@@ -295,8 +415,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
       articleTitle.textContent = title || '제목을 입력하세요';
     },
     setMarkdown(markdown: string) {
-      body.innerHTML = renderMarkdown(markdown);
-      body.prepend(articleTitle);
+      content.innerHTML = renderMarkdown(markdown);
     },
     setVisible(visible: boolean) {
       panel.style.display = visible ? 'flex' : 'none';

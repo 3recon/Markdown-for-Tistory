@@ -20,4 +20,36 @@ describe('normalizeMarkdownSource', () => {
 
     expect(normalized).toBe('a\n\nb');
   });
+
+  it('preserves a blank line after a list item when the next line is a paragraph', () => {
+    const normalized = normalizeMarkdownSource('1. list\n\nparagraph');
+
+    expect(normalized).toBe('1. list\n\nparagraph');
+  });
+
+  it('removes blank lines inserted between list items', () => {
+    const normalized = normalizeMarkdownSource('1. one\n\n2. two');
+
+    expect(normalized).toBe('1. one\n2. two');
+  });
+
+  it('preserves blank lines between separate tables', () => {
+    const normalized = normalizeMarkdownSource(
+      '| A |\n| --- |\n| 1 |\n\n| B |\n| --- |\n| 2 |'
+    );
+
+    expect(normalized).toBe('| A |\n| --- |\n| 1 |\n\n| B |\n| --- |\n| 2 |');
+  });
+
+  it('inserts a paragraph break after a list item when the next line is plain text', () => {
+    const normalized = normalizeMarkdownSource('- item\nparagraph');
+
+    expect(normalized).toBe('- item\n\nparagraph');
+  });
+
+  it('prevents a pending unordered list marker from turning the previous line into a heading', () => {
+    const normalized = normalizeMarkdownSource('동해물과\n백두산이\n-');
+
+    expect(normalized).toBe('동해물과\n백두산이\n\n-');
+  });
 });

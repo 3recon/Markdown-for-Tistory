@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Chrome extension that adds Markdown writing and preview support to the Tistory editor.",
+  "description": "Chrome extension that adds live Markdown preview and tag helpers to the Tistory editor.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -6,7 +6,6 @@ import type { StorageDriver } from './storageDriver';
 
 const createEmptySchema = (): StorageSchema => ({
   version: STORAGE_VERSION,
-  postSources: {},
   settings: defaultExtensionSettings,
   tagPresets: {}
 });
@@ -14,7 +13,15 @@ const createEmptySchema = (): StorageSchema => ({
 export const createRootStore = (driver: StorageDriver) => {
   const read = async (): Promise<StorageSchema> => {
     const stored = await driver.get<StorageSchema>(ROOT_STORAGE_KEY);
-    return stored ?? createEmptySchema();
+    if (!stored) {
+      return createEmptySchema();
+    }
+
+    return {
+      version: stored.version ?? STORAGE_VERSION,
+      settings: stored.settings ?? defaultExtensionSettings,
+      tagPresets: stored.tagPresets ?? {}
+    };
   };
 
   const write = async (schema: StorageSchema): Promise<void> => {

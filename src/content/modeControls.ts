@@ -22,7 +22,6 @@ const buttonBaseStyle = `
 `;
 
 export interface ModeControlsState {
-  markdownModeEnabled: boolean;
   previewEnabled: boolean;
 }
 
@@ -43,7 +42,6 @@ const applyButtonState = (button: HTMLButtonElement, active: boolean) => {
 
 export const createModeControls = (options: {
   initialState: ModeControlsState;
-  onToggleMarkdownMode(): void;
   onTogglePreview(): void;
 }): ModeControlsController => {
   const existing = document.getElementById(CONTROLS_ID);
@@ -55,25 +53,16 @@ export const createModeControls = (options: {
   root.id = CONTROLS_ID;
   root.setAttribute('style', controlsStyle);
 
-  const markdownButton = document.createElement('button');
-  markdownButton.type = 'button';
-  markdownButton.textContent = 'Markdown 모드';
-
   const previewButton = document.createElement('button');
   previewButton.type = 'button';
   previewButton.textContent = '미리보기';
-
-  markdownButton.addEventListener('click', options.onToggleMarkdownMode);
   previewButton.addEventListener('click', options.onTogglePreview);
 
-  root.append(markdownButton, previewButton);
+  root.append(previewButton);
   document.body.append(root);
 
   const setState = (state: ModeControlsState) => {
-    applyButtonState(markdownButton, state.markdownModeEnabled);
-    applyButtonState(previewButton, state.markdownModeEnabled && state.previewEnabled);
-    previewButton.disabled = !state.markdownModeEnabled;
-    previewButton.style.opacity = state.markdownModeEnabled ? '1' : '0.55';
+    applyButtonState(previewButton, state.previewEnabled);
   };
 
   setState(options.initialState);

@@ -1,17 +1,15 @@
 import type { EditorAdapter } from './editorAdapter';
 
-import { detectCurrentPostIdentity, isLikelyTistoryEditorPage } from './tistoryPostIdentity';
-import { detectEditorAdapter, detectEditorAdapterFromTarget } from './editorAdapter';
+import { isLikelyTistoryEditorPage } from './tistoryPostIdentity';
+import { detectEditorAdapter } from './editorAdapter';
 import { createModeControls } from './modeControls';
 import { detectTitleAdapter } from './titleAdapter';
 import { createPreviewPanel } from '../preview/previewPanel';
 import { attachBidirectionalScrollSync } from '../preview/scrollSync';
-import { createPostSourceRepository } from '../storage/postSourceRepository';
 import { createSettingsRepository } from '../storage/settingsRepository';
 import { chromeLocalStorageDriver } from '../storage/storageDriver';
 
 export const createExtensionBootstrap = () => {
-  const repository = createPostSourceRepository(chromeLocalStorageDriver);
   const settingsRepository = createSettingsRepository(chromeLocalStorageDriver);
 
   return {
@@ -20,120 +18,116 @@ export const createExtensionBootstrap = () => {
         return;
       }
 
-      const identity = detectCurrentPostIdentity(window.location, document);
-
-      if (!identity) {
-        console.info('[tistory-md] editor page detected but no stable post identity was found yet.');
-        return;
-      }
-
-      let editor = detectEditorAdapter(document);
-
-      if (!editor) {
+      const detectedEditor = detectEditorAdapter(document);
+      if (!detectedEditor) {
         console.info('[tistory-md] editor page detected but no supported editor element was found.');
         return;
       }
 
+      let editor: EditorAdapter = detectedEditor;
       const settings = await settingsRepository.getSettings();
-      const record = await repository.ensurePostRecord(identity);
       const preview = createPreviewPanel();
       const title = detectTitleAdapter(document);
       let currentState = {
-        markdownModeEnabled: settings.markdownModeEnabled,
         previewEnabled: settings.previewEnabled
       };
-      let lastMarkdown = record.markdown || editor.getMarkdown();
 
-      const syncPreview = async (markdown: string) => {
-        lastMarkdown = markdown;
+      const syncPreview = (markdown: string) => {
         preview.setMarkdown(markdown);
-
-        if (currentState.markdownModeEnabled) {
-          await repository.saveMarkdown(identity, markdown);
-        }
       };
 
       const syncTitle = () => {
         preview.setTitle(title?.getValue() ?? '');
       };
 
-      if (currentState.markdownModeEnabled && record.markdown) {
-        editor.setMarkdown(record.markdown);
-      }
-
       syncTitle();
-      await syncPreview(lastMarkdown);
-      preview.setVisible(currentState.markdownModeEnabled && currentState.previewEnabled);
+      syncPreview(editor.getMarkdown());
+      preview.setVisible(currentState.previewEnabled);
 
       const controls = createModeControls({
         initialState: currentState,
-        onToggleMarkdownMode: async () => {
-          currentState = {
-            ...currentState,
-            markdownModeEnabled: !currentState.markdownModeEnabled
-          };
-
-          if (currentState.markdownModeEnabled) {
-            if (!editor) {
-              return;
-            }
-
-            const restored = await repository.getPostSource(identity);
-            const markdown = restored?.markdown || editor.getMarkdown();
-            editor.setMarkdown(markdown);
-            await syncPreview(markdown);
-          }
-
-          preview.setVisible(currentState.markdownModeEnabled && currentState.previewEnabled);
-          controls.setState(currentState);
-          await settingsRepository.updateSettings({
-            markdownModeEnabled: currentState.markdownModeEnabled
-          });
-        },
         onTogglePreview: async () => {
-          if (!currentState.markdownModeEnabled) {
-            return;
-          }
-
           currentState = {
             ...currentState,
             previewEnabled: !currentState.previewEnabled
           };
 
-          preview.setVisible(currentState.markdownModeEnabled && currentState.previewEnabled);
+          preview.setVisible(currentState.previewEnabled);
           controls.setState(currentState);
-          await settingsRepository.updateSettings({
-            previewEnabled: currentState.previewEnabled
-          });
+          try {
+            await settingsRepository.updateSettings({
+              previewEnabled: currentState.previewEnabled
+            });
+          } catch (error) {
+            if (isExtensionContextInvalidated(error)) {
+              console.info('[tistory-md] skipped settings persistence because the extension context was invalidated.');
+              return;
+            }
+
+            console.warn('[tistory-md] failed to persist preview settings.', error);
+          }
         }
       });
 
-      const detachInput = wireEditorInput(editor.ownerDocument, async (targetEditor) => {
-        if (!editor) {
-          return;
-        }
-
-        if (targetEditor && targetEditor.element !== editor.element) {
-          scrollSync.destroy();
-          editor = targetEditor;
-          scrollSync = attachBidirectionalScrollSync(editor.element, preview.body);
-        }
-
-        if (!currentState.markdownModeEnabled) {
-          return;
-        }
-
-        await syncPreview(editor.getMarkdown());
+      let scrollSync = attachBidirectionalScrollSync(editor.scrollElement, preview.body);
+      let detachEditorInput = attachEditorInput(editor, () => {
+        syncPreview(editor.getMarkdown());
       });
+
+      const rebindEditor = (nextEditor = detectEditorAdapter(document)) => {
+        if (!nextEditor) {
+          return;
+        }
+
+        if (nextEditor.element === editor.element) {
+          syncPreview(editor.getMarkdown());
+          return;
+        }
+
+        detachEditorInput();
+        scrollSync.destroy();
+        editor = nextEditor;
+        detachEditorInput = attachEditorInput(editor, () => {
+          syncPreview(editor.getMarkdown());
+        });
+        scrollSync = attachBidirectionalScrollSync(editor.scrollElement, preview.body);
+        syncPreview(editor.getMarkdown());
+      };
+
+      let refreshScheduled = false;
+      const scheduleRefresh = () => {
+        if (refreshScheduled) {
+          return;
+        }
+
+        refreshScheduled = true;
+        window.setTimeout(() => {
+          refreshScheduled = false;
+          rebindEditor();
+        }, 0);
+      };
+
+      const editorObserver = new MutationObserver(() => {
+        scheduleRefresh();
+      });
+      editorObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true
+      });
+
+      document.addEventListener('change', scheduleRefresh, true);
+      document.addEventListener('click', scheduleRefresh, true);
 
       const detachTitleInput = title?.onInput(syncTitle) ?? (() => undefined);
 
-      let scrollSync = attachBidirectionalScrollSync(editor.element, preview.body);
-
-      console.info('[tistory-md] initialized editor integration for', identity.storageKey);
+      console.info('[tistory-md] initialized editor integration');
 
       return () => {
-        detachInput();
+        editorObserver.disconnect();
+        document.removeEventListener('change', scheduleRefresh, true);
+        document.removeEventListener('click', scheduleRefresh, true);
+        detachEditorInput();
         detachTitleInput();
         scrollSync.destroy();
       };
@@ -141,14 +135,17 @@ export const createExtensionBootstrap = () => {
   };
 };
 
-const wireEditorInput = (
-  documentRef: Document,
-  listener: (editor: EditorAdapter | null) => void
+const attachEditorInput = (
+  editor: EditorAdapter,
+  listener: () => void
 ) => {
-  const onInput = (event: Event) => {
-    listener(detectEditorAdapterFromTarget(event.target));
-  };
+  return editor.onInput(listener);
+};
 
-  documentRef.addEventListener('input', onInput, true);
-  return () => documentRef.removeEventListener('input', onInput, true);
+const isExtensionContextInvalidated = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /Extension context invalidated/i.test(error.message);
 };

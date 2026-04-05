@@ -7,11 +7,21 @@ const hasChromeStorage = (): boolean => {
   return typeof chrome !== 'undefined' && Boolean(chrome.storage?.local);
 };
 
+const isExtensionContextInvalidated = (error: unknown): boolean => {
+  return error instanceof Error && /Extension context invalidated/i.test(error.message);
+};
+
 export const chromeLocalStorageDriver: StorageDriver = {
   async get<T>(key: string) {
     if (hasChromeStorage()) {
-      const result = await chrome.storage.local.get(key);
-      return result[key] as T | undefined;
+      try {
+        const result = await chrome.storage.local.get(key);
+        return result[key] as T | undefined;
+      } catch (error) {
+        if (!isExtensionContextInvalidated(error)) {
+          throw error;
+        }
+      }
     }
 
     const raw = globalThis.localStorage?.getItem(key);
@@ -19,8 +29,14 @@ export const chromeLocalStorageDriver: StorageDriver = {
   },
   async set<T>(key: string, value: T) {
     if (hasChromeStorage()) {
-      await chrome.storage.local.set({ [key]: value });
-      return;
+      try {
+        await chrome.storage.local.set({ [key]: value });
+        return;
+      } catch (error) {
+        if (!isExtensionContextInvalidated(error)) {
+          throw error;
+        }
+      }
     }
 
     globalThis.localStorage?.setItem(key, JSON.stringify(value));
