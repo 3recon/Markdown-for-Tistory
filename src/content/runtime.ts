@@ -20,7 +20,7 @@ export const createExtensionBootstrap = () => {
 
       const detectedEditor = detectEditorAdapter(document);
       if (!detectedEditor) {
-        console.info('[tistory-md] editor page detected but no supported editor element was found.');
+        console.warn('[tistory-md] editor page detected but no supported editor element was found.');
         return;
       }
 
@@ -52,7 +52,7 @@ export const createExtensionBootstrap = () => {
       syncTitle();
       syncPreview(editor.getMarkdown());
       preview.setVisible(currentState.previewEnabled);
-      console.info('[tistory-md] scroll endpoints detected', {
+      console.warn('[tistory-md] scroll endpoints detected', {
         editor: describeScrollElement(editor.scrollElement),
         preview: describeScrollElement(preview.scrollElement)
       });
@@ -73,7 +73,7 @@ export const createExtensionBootstrap = () => {
             });
           } catch (error) {
             if (isExtensionContextInvalidated(error)) {
-              console.info('[tistory-md] skipped settings persistence because the extension context was invalidated.');
+              console.warn('[tistory-md] skipped settings persistence because the extension context was invalidated.');
               return;
             }
 
@@ -133,7 +133,7 @@ export const createExtensionBootstrap = () => {
           }
         );
         syncPreview(editor.getMarkdown());
-        console.info('[tistory-md] scroll endpoints rebound', {
+        console.warn('[tistory-md] scroll endpoints rebound', {
           editor: describeScrollElement(editor.scrollElement),
           preview: describeScrollElement(preview.scrollElement)
         });
@@ -166,7 +166,7 @@ export const createExtensionBootstrap = () => {
 
       const detachTitleInput = title?.onInput(syncTitle) ?? (() => undefined);
 
-      console.info('[tistory-md] initialized editor integration');
+      console.warn('[tistory-md] initialized editor integration');
 
       return () => {
         editorObserver.disconnect();

@@ -49,7 +49,7 @@ export const attachBidirectionalScrollSync = (
   const now = () => Date.now();
   const canScroll = (element: ScrollLikeElement) => element.scrollHeight - element.clientHeight > EPSILON;
   const log = (direction: string, detail: Record<string, unknown>) => {
-    console.info(`[tistory-md][scroll-sync] ${direction}`, detail);
+    console.warn(`[tistory-md][scroll-sync] ${direction}`, detail);
   };
 
   const syncToTarget = () => {
