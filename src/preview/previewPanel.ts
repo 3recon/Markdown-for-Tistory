@@ -29,7 +29,7 @@ const panelStyles = `
 
 const bodyStyles = `
   display: block;
-  padding: 300px 24px 0;
+  padding: 100px 24px 0;
   color: #333;
   line-height: 1.8;
   font-size: 16px;
@@ -352,7 +352,7 @@ const createContentRoot = (): HTMLDivElement => {
 const createBottomSpacer = (): HTMLDivElement => {
   const spacer = document.createElement('div');
   spacer.id = BOTTOM_SPACER_ID;
-  spacer.setAttribute('style', 'height: 300px;');
+  spacer.setAttribute('style', 'height: 100px;');
   return spacer;
 };
 
