@@ -1,4 +1,5 @@
 const EPSILON = 1;
+const GUARD_WINDOW_MS = 240;
 
 export const computeScrollRatio = (
   scrollTop: number,
@@ -26,8 +27,13 @@ export interface ScrollLikeElement {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
-  addEventListener(type: 'scroll', listener: () => void): void;
-  removeEventListener?(type: 'scroll', listener: () => void): void;
+}
+
+export interface ScrollSyncEndpoint {
+  name: string;
+  element: ScrollLikeElement;
+  setScrollTop?(scrollTop: number): void;
+  onScroll(listener: () => void): () => void;
 }
 
 export interface ScrollSyncController {
@@ -35,49 +41,177 @@ export interface ScrollSyncController {
 }
 
 export const attachBidirectionalScrollSync = (
-  source: ScrollLikeElement,
-  target: ScrollLikeElement
+  source: ScrollSyncEndpoint,
+  target: ScrollSyncEndpoint
 ): ScrollSyncController => {
-  let sourceGuard = false;
-  let targetGuard = false;
+  let ignoreSourceUntil = 0;
+  let ignoreTargetUntil = 0;
+  let lastAppliedSourceScrollTop: number | null = null;
+  let lastAppliedTargetScrollTop: number | null = null;
+
+  const now = () => Date.now();
+  const canScroll = (element: ScrollLikeElement) => element.scrollHeight - element.clientHeight > EPSILON;
+  const isProgrammaticScroll = (
+    actualScrollTop: number,
+    lastAppliedScrollTop: number | null
+  ): boolean => {
+    if (lastAppliedScrollTop === null) {
+      return false;
+    }
+
+    return Math.abs(actualScrollTop - lastAppliedScrollTop) <= EPSILON;
+  };
+  const log = (direction: string, detail: Record<string, unknown>) => {
+    console.warn(`[tistory-md][scroll-sync] ${direction}`, detail);
+  };
 
   const syncToTarget = () => {
-    if (sourceGuard) {
-      sourceGuard = false;
+    const currentTime = now();
+    if (currentTime < ignoreSourceUntil) {
+      const programmatic = isProgrammaticScroll(
+        source.element.scrollTop,
+        lastAppliedSourceScrollTop
+      );
+      if (!programmatic) {
+        log(`${source.name} -> ${target.name} guard-bypassed`, {
+          reason: 'source-user-scroll-detected',
+          currentTime,
+          ignoreSourceUntil,
+          sourceScrollTop: source.element.scrollTop,
+          lastAppliedSourceScrollTop
+        });
+      } else {
+      log(`${source.name} -> ${target.name} skipped`, {
+        reason: 'source-guard',
+        currentTime,
+        ignoreSourceUntil,
+        sourceScrollTop: source.element.scrollTop,
+        targetScrollTop: target.element.scrollTop,
+        lastAppliedSourceScrollTop
+      });
+        return;
+      }
+    }
+
+    if (!canScroll(source.element)) {
+      log(`${source.name} -> ${target.name} skipped`, {
+        reason: 'source-not-scrollable',
+        currentTime,
+        sourceScrollTop: source.element.scrollTop,
+        sourceScrollHeight: source.element.scrollHeight,
+        sourceClientHeight: source.element.clientHeight
+      });
       return;
     }
 
-    targetGuard = true;
-    const ratio = computeScrollRatio(source.scrollTop, source.scrollHeight, source.clientHeight);
-    const nextScrollTop = ratioToScrollTop(ratio, target.scrollHeight, target.clientHeight);
+    ignoreTargetUntil = currentTime + GUARD_WINDOW_MS;
+    const ratio = computeScrollRatio(
+      source.element.scrollTop,
+      source.element.scrollHeight,
+      source.element.clientHeight
+    );
+    const nextScrollTop = ratioToScrollTop(
+      ratio,
+      target.element.scrollHeight,
+      target.element.clientHeight
+    );
 
-    if (Math.abs(target.scrollTop - nextScrollTop) > EPSILON) {
-      target.scrollTop = nextScrollTop;
+    log(`${source.name} -> ${target.name}`, {
+      currentTime,
+      ratio,
+      sourceScrollTop: source.element.scrollTop,
+      sourceScrollHeight: source.element.scrollHeight,
+      sourceClientHeight: source.element.clientHeight,
+      targetScrollTop: target.element.scrollTop,
+      targetScrollHeight: target.element.scrollHeight,
+      targetClientHeight: target.element.clientHeight,
+      nextScrollTop,
+      ignoreTargetUntil
+    });
+
+    if (Math.abs(target.element.scrollTop - nextScrollTop) > EPSILON) {
+      target.setScrollTop?.(nextScrollTop) ?? (target.element.scrollTop = nextScrollTop);
     }
+    lastAppliedTargetScrollTop = nextScrollTop;
   };
 
   const syncToSource = () => {
-    if (targetGuard) {
-      targetGuard = false;
+    const currentTime = now();
+    if (currentTime < ignoreTargetUntil) {
+      const programmatic = isProgrammaticScroll(
+        target.element.scrollTop,
+        lastAppliedTargetScrollTop
+      );
+      if (!programmatic) {
+        log(`${target.name} -> ${source.name} guard-bypassed`, {
+          reason: 'target-user-scroll-detected',
+          currentTime,
+          ignoreTargetUntil,
+          targetScrollTop: target.element.scrollTop,
+          lastAppliedTargetScrollTop
+        });
+      } else {
+      log(`${target.name} -> ${source.name} skipped`, {
+        reason: 'target-guard',
+        currentTime,
+        ignoreTargetUntil,
+        sourceScrollTop: source.element.scrollTop,
+        targetScrollTop: target.element.scrollTop,
+        lastAppliedTargetScrollTop
+      });
+        return;
+      }
+    }
+
+    if (!canScroll(target.element)) {
+      log(`${target.name} -> ${source.name} skipped`, {
+        reason: 'target-not-scrollable',
+        currentTime,
+        targetScrollTop: target.element.scrollTop,
+        targetScrollHeight: target.element.scrollHeight,
+        targetClientHeight: target.element.clientHeight
+      });
       return;
     }
 
-    sourceGuard = true;
-    const ratio = computeScrollRatio(target.scrollTop, target.scrollHeight, target.clientHeight);
-    const nextScrollTop = ratioToScrollTop(ratio, source.scrollHeight, source.clientHeight);
+    ignoreSourceUntil = currentTime + GUARD_WINDOW_MS;
+    const ratio = computeScrollRatio(
+      target.element.scrollTop,
+      target.element.scrollHeight,
+      target.element.clientHeight
+    );
+    const nextScrollTop = ratioToScrollTop(
+      ratio,
+      source.element.scrollHeight,
+      source.element.clientHeight
+    );
 
-    if (Math.abs(source.scrollTop - nextScrollTop) > EPSILON) {
-      source.scrollTop = nextScrollTop;
+    log(`${target.name} -> ${source.name}`, {
+      currentTime,
+      ratio,
+      sourceScrollTop: source.element.scrollTop,
+      sourceScrollHeight: source.element.scrollHeight,
+      sourceClientHeight: source.element.clientHeight,
+      targetScrollTop: target.element.scrollTop,
+      targetScrollHeight: target.element.scrollHeight,
+      targetClientHeight: target.element.clientHeight,
+      nextScrollTop,
+      ignoreSourceUntil
+    });
+
+    if (Math.abs(source.element.scrollTop - nextScrollTop) > EPSILON) {
+      source.setScrollTop?.(nextScrollTop) ?? (source.element.scrollTop = nextScrollTop);
     }
+    lastAppliedSourceScrollTop = nextScrollTop;
   };
 
-  source.addEventListener('scroll', syncToTarget);
-  target.addEventListener('scroll', syncToSource);
+  const detachSource = source.onScroll(syncToTarget);
+  const detachTarget = target.onScroll(syncToSource);
 
   return {
     destroy() {
-      source.removeEventListener?.('scroll', syncToTarget);
-      target.removeEventListener?.('scroll', syncToSource);
+      detachSource();
+      detachTarget();
     }
   };
 };

@@ -14,6 +14,13 @@ const EDITOR_SELECTORS = [
   CONTENTEDITABLE_SELECTOR
 ];
 
+const EDITOR_SCROLL_ROOT_SELECTORS = [
+  '#post-editor-app',
+  '#editorContainer',
+  '.content-editor',
+  '.markdown-editor'
+];
+
 type EditorElement = HTMLTextAreaElement | HTMLElement;
 
 interface CodeMirrorLike {
@@ -23,13 +30,78 @@ interface CodeMirrorLike {
   off?(event: 'change', listener: () => void): void;
 }
 
+const isScrollableElement = (element: HTMLElement): boolean => {
+  const style = window.getComputedStyle(element);
+  const overflowY = style.overflowY;
+
+  return /(auto|scroll|overlay)/.test(overflowY) && element.scrollHeight > element.clientHeight + 1;
+};
+
+const resolveDocumentScrollElement = (documentRef: Document): HTMLElement | null => {
+  const scrollingElement = documentRef.scrollingElement;
+  if (scrollingElement instanceof HTMLElement) {
+    return scrollingElement;
+  }
+
+  if (documentRef.documentElement instanceof HTMLElement) {
+    return documentRef.documentElement;
+  }
+
+  if (documentRef.body instanceof HTMLElement) {
+    return documentRef.body;
+  }
+
+  return null;
+};
+
+const findScrollContainer = (element: HTMLElement): HTMLElement => {
+  if (isScrollableElement(element)) {
+    return element;
+  }
+
+  let current: HTMLElement | null = element.parentElement;
+  while (current) {
+    if (isScrollableElement(current)) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return resolveDocumentScrollElement(element.ownerDocument) ?? element;
+};
+
+const isScrollContainerCandidate = (element: HTMLElement): boolean => {
+  return element.scrollHeight > element.clientHeight + 1;
+};
+
+const findPreferredEditorScrollElement = (element: HTMLElement): HTMLElement => {
+  for (const selector of EDITOR_SCROLL_ROOT_SELECTORS) {
+    const candidate =
+      element.closest(selector) ??
+      element.ownerDocument.querySelector<HTMLElement>(selector);
+
+    if (!(candidate instanceof HTMLElement) || !isVisible(candidate)) {
+      continue;
+    }
+
+    if (isScrollContainerCandidate(candidate)) {
+      return candidate;
+    }
+  }
+
+  return findScrollContainer(element);
+};
+
 export interface EditorAdapter {
   element: EditorElement;
   scrollElement: HTMLElement;
   ownerDocument: Document;
   getMarkdown(): string;
   setMarkdown(markdown: string): void;
+  setScrollTop(scrollTop: number): void;
   onInput(listener: () => void): () => void;
+  onScroll(listener: () => void): () => void;
 }
 
 const isTextarea = (element: Element): element is HTMLTextAreaElement => {
@@ -75,9 +147,23 @@ const readCodeMirrorText = (element: HTMLElement): string => {
   return textarea?.value ?? '';
 };
 
+const setDocumentScrollTop = (documentRef: Document, scrollTop: number) => {
+  const scrollingElement = resolveDocumentScrollElement(documentRef);
+  if (scrollingElement) {
+    scrollingElement.scrollTop = scrollTop;
+  }
+
+  documentRef.defaultView?.scrollTo({
+    top: scrollTop,
+    behavior: 'auto'
+  });
+};
+
 const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
-  scrollElement: element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element,
+  scrollElement: findPreferredEditorScrollElement(
+    element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
+  ),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(readCodeMirrorText(element));
@@ -98,6 +184,14 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
 
     dispatchSyntheticInput(element, markdown);
   },
+  setScrollTop(scrollTop: number) {
+    const scrollElement = findPreferredEditorScrollElement(
+      element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
+    );
+
+    scrollElement.scrollTop = scrollTop;
+    setDocumentScrollTop(element.ownerDocument, scrollTop);
+  },
   onInput(listener: () => void) {
     const instance = getCodeMirrorInstance(element);
     if (instance) {
@@ -116,12 +210,22 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
     return () => element.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const scrollElement = findPreferredEditorScrollElement(
+      element.querySelector<HTMLElement>('.CodeMirror-scroll') ?? element
+    );
+    scrollElement.addEventListener('scroll', listener, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener('scroll', listener);
+    };
   }
 });
 
 const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => ({
   element,
-  scrollElement: element,
+  scrollElement: findPreferredEditorScrollElement(element),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.value);
@@ -130,16 +234,29 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
     element.value = markdown;
     element.dispatchEvent(new Event('input', { bubbles: true }));
   },
+  setScrollTop(scrollTop: number) {
+    const scrollElement = findPreferredEditorScrollElement(element);
+    scrollElement.scrollTop = scrollTop;
+    setDocumentScrollTop(element.ownerDocument, scrollTop);
+  },
   onInput(listener: () => void) {
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
     return () => element.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const scrollElement = findPreferredEditorScrollElement(element);
+    scrollElement.addEventListener('scroll', listener, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener('scroll', listener);
+    };
   }
 });
 
 const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
   element,
-  scrollElement: element,
+  scrollElement: findPreferredEditorScrollElement(element),
   ownerDocument: element.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(element.innerText || element.textContent || '');
@@ -148,16 +265,29 @@ const createContentEditableAdapter = (element: HTMLElement): EditorAdapter => ({
     element.textContent = markdown;
     dispatchSyntheticInput(element, markdown);
   },
+  setScrollTop(scrollTop: number) {
+    const scrollElement = findPreferredEditorScrollElement(element);
+    scrollElement.scrollTop = scrollTop;
+    setDocumentScrollTop(element.ownerDocument, scrollTop);
+  },
   onInput(listener: () => void) {
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
     return () => element.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const scrollElement = findPreferredEditorScrollElement(element);
+    scrollElement.addEventListener('scroll', listener, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener('scroll', listener);
+    };
   }
 });
 
 const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): EditorAdapter => ({
   element: body,
-  scrollElement: body,
+  scrollElement: resolveDocumentScrollElement(iframe.contentDocument ?? body.ownerDocument) ?? body,
   ownerDocument: iframe.contentDocument ?? body.ownerDocument,
   getMarkdown() {
     return normalizeMarkdownSource(body.innerText || body.textContent || '');
@@ -166,10 +296,24 @@ const createIframeBodyAdapter = (iframe: HTMLIFrameElement, body: HTMLElement): 
     body.textContent = markdown;
     dispatchSyntheticInput(body, markdown);
   },
+  setScrollTop(scrollTop: number) {
+    const documentRef = iframe.contentDocument ?? body.ownerDocument;
+    setDocumentScrollTop(documentRef, scrollTop);
+  },
   onInput(listener: () => void) {
     const wrapped = () => listener();
     body.addEventListener('input', wrapped);
     return () => body.removeEventListener('input', wrapped);
+  },
+  onScroll(listener: () => void) {
+    const documentRef = iframe.contentDocument ?? body.ownerDocument;
+    const documentScrollElement = resolveDocumentScrollElement(documentRef);
+    const scrollElement = documentScrollElement ?? body;
+    scrollElement.addEventListener('scroll', listener, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener('scroll', listener);
+    };
   }
 });
 

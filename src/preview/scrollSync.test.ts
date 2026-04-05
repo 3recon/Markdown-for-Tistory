@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { computeScrollRatio, ratioToScrollTop } from './scrollSync';
+import {
+  attachBidirectionalScrollSync,
+  computeScrollRatio,
+  ratioToScrollTop,
+  type ScrollSyncEndpoint
+} from './scrollSync';
 
 describe('computeScrollRatio', () => {
   it('returns 0 when an element cannot scroll', () => {
@@ -20,5 +25,91 @@ describe('ratioToScrollTop', () => {
   it('clamps out-of-range values', () => {
     expect(ratioToScrollTop(2, 1000, 500)).toBe(500);
     expect(ratioToScrollTop(-1, 1000, 500)).toBe(0);
+  });
+});
+
+const createEndpoint = (
+  scrollHeight: number,
+  clientHeight: number
+): ScrollSyncEndpoint & { emitScroll(): void } => {
+  const listeners = new Set<() => void>();
+  const endpoint: ScrollSyncEndpoint & { emitScroll(): void } = {
+    name: `endpoint-${scrollHeight}-${clientHeight}`,
+    element: {
+      scrollTop: 0,
+      scrollHeight,
+      clientHeight
+    },
+    onScroll(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    emitScroll() {
+      for (const listener of listeners) {
+        listener();
+      }
+    }
+  };
+
+  return endpoint;
+};
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('attachBidirectionalScrollSync', () => {
+  it('allows opposite-side scrolling when the position differs from the last applied value', () => {
+    let now = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+    const source = createEndpoint(1000, 500);
+    const target = createEndpoint(1200, 600);
+    attachBidirectionalScrollSync(source, target);
+
+    source.element.scrollTop = 250;
+    source.emitScroll();
+    expect(target.element.scrollTop).toBeCloseTo(300);
+
+    source.element.scrollTop = 0;
+    source.emitScroll();
+    expect(target.element.scrollTop).toBeCloseTo(0);
+
+    target.element.scrollTop = 240;
+    target.emitScroll();
+    expect(source.element.scrollTop).toBeCloseTo(200);
+
+    now += 300;
+    target.emitScroll();
+    expect(source.element.scrollTop).toBeCloseTo(200);
+  });
+
+  it('does not reset the other side when the source cannot scroll', () => {
+    const source = createEndpoint(500, 500);
+    const target = createEndpoint(1200, 600);
+    attachBidirectionalScrollSync(source, target);
+
+    target.element.scrollTop = 240;
+    source.emitScroll();
+
+    expect(target.element.scrollTop).toBe(240);
+  });
+
+  it('allows user scrolling on the guarded target side', () => {
+    let now = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+    const source = createEndpoint(1000, 500);
+    const target = createEndpoint(1200, 600);
+    attachBidirectionalScrollSync(source, target);
+
+    source.element.scrollTop = 250;
+    source.emitScroll();
+    expect(target.element.scrollTop).toBeCloseTo(300);
+
+    target.element.scrollTop = 360;
+    target.emitScroll();
+
+    expect(source.element.scrollTop).toBeCloseTo(300);
   });
 });

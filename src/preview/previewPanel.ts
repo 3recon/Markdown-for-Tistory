@@ -12,26 +12,22 @@ const panelStyles = `
   right: 24px;
   width: min(42vw, 680px);
   height: calc(100vh - 48px);
-  display: flex;
-  flex-direction: column;
+  display: block;
   min-height: 0;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   z-index: 2147483000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 `;
 
 const bodyStyles = `
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  display: block;
   padding: 20px 20px 50px;
   color: #333;
   line-height: 1.8;
@@ -42,6 +38,9 @@ const bodyStyles = `
 `;
 
 const headerStyles = `
+  position: sticky;
+  top: 0;
+  height: 58px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -62,6 +61,7 @@ const titleStyles = `
 export interface PreviewPanelController {
   element: HTMLElement;
   body: HTMLElement;
+  scrollElement: HTMLElement;
   setTitle(title: string): void;
   setMarkdown(markdown: string): void;
   setVisible(visible: boolean): void;
@@ -326,6 +326,7 @@ const createBody = (): HTMLDivElement => {
   const body = document.createElement('div');
   body.id = BODY_ID;
   body.setAttribute('style', bodyStyles);
+
   return body;
 };
 
@@ -369,6 +370,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     return {
       element: existing,
       body,
+      scrollElement: existing,
       setTitle(title: string) {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
@@ -411,6 +413,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
   return {
     element: panel,
     body,
+    scrollElement: panel,
     setTitle(title: string) {
       articleTitle.textContent = title || '제목을 입력하세요';
     },

@@ -20,7 +20,7 @@ export const createExtensionBootstrap = () => {
 
       const detectedEditor = detectEditorAdapter(document);
       if (!detectedEditor) {
-        console.info('[tistory-md] editor page detected but no supported editor element was found.');
+        console.warn('[tistory-md] editor page detected but no supported editor element was found.');
         return;
       }
 
@@ -40,9 +40,22 @@ export const createExtensionBootstrap = () => {
         preview.setTitle(title?.getValue() ?? '');
       };
 
+      const describeScrollElement = (element: HTMLElement) => ({
+        tagName: element.tagName,
+        id: element.id,
+        className: element.className,
+        scrollTop: element.scrollTop,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight
+      });
+
       syncTitle();
       syncPreview(editor.getMarkdown());
       preview.setVisible(currentState.previewEnabled);
+      console.warn('[tistory-md] scroll endpoints detected', {
+        editor: describeScrollElement(editor.scrollElement),
+        preview: describeScrollElement(preview.scrollElement)
+      });
 
       const controls = createModeControls({
         initialState: currentState,
@@ -60,7 +73,7 @@ export const createExtensionBootstrap = () => {
             });
           } catch (error) {
             if (isExtensionContextInvalidated(error)) {
-              console.info('[tistory-md] skipped settings persistence because the extension context was invalidated.');
+              console.warn('[tistory-md] skipped settings persistence because the extension context was invalidated.');
               return;
             }
 
@@ -69,7 +82,22 @@ export const createExtensionBootstrap = () => {
         }
       });
 
-      let scrollSync = attachBidirectionalScrollSync(editor.scrollElement, preview.body);
+      let scrollSync = attachBidirectionalScrollSync(
+        {
+          name: 'editor',
+          element: editor.scrollElement,
+          setScrollTop: (scrollTop) => editor.setScrollTop(scrollTop),
+          onScroll: (listener) => editor.onScroll(listener)
+        },
+        {
+          name: 'preview',
+          element: preview.scrollElement,
+          onScroll: (listener) => {
+            preview.scrollElement.addEventListener('scroll', listener, { passive: true });
+            return () => preview.scrollElement.removeEventListener('scroll', listener);
+          }
+        }
+      );
       let detachEditorInput = attachEditorInput(editor, () => {
         syncPreview(editor.getMarkdown());
       });
@@ -90,8 +118,27 @@ export const createExtensionBootstrap = () => {
         detachEditorInput = attachEditorInput(editor, () => {
           syncPreview(editor.getMarkdown());
         });
-        scrollSync = attachBidirectionalScrollSync(editor.scrollElement, preview.body);
+        scrollSync = attachBidirectionalScrollSync(
+          {
+            name: 'editor',
+            element: editor.scrollElement,
+            setScrollTop: (scrollTop) => editor.setScrollTop(scrollTop),
+            onScroll: (listener) => editor.onScroll(listener)
+          },
+          {
+            name: 'preview',
+            element: preview.scrollElement,
+            onScroll: (listener) => {
+              preview.scrollElement.addEventListener('scroll', listener, { passive: true });
+              return () => preview.scrollElement.removeEventListener('scroll', listener);
+            }
+          }
+        );
         syncPreview(editor.getMarkdown());
+        console.warn('[tistory-md] scroll endpoints rebound', {
+          editor: describeScrollElement(editor.scrollElement),
+          preview: describeScrollElement(preview.scrollElement)
+        });
       };
 
       let refreshScheduled = false;
@@ -121,7 +168,7 @@ export const createExtensionBootstrap = () => {
 
       const detachTitleInput = title?.onInput(syncTitle) ?? (() => undefined);
 
-      console.info('[tistory-md] initialized editor integration');
+      console.warn('[tistory-md] initialized editor integration');
 
       return () => {
         editorObserver.disconnect();
