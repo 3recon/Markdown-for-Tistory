@@ -76,25 +76,33 @@ const ensurePreviewStyles = () => {
       --tistory-md-preview-width: ${PREVIEW_WIDTH};
       --tistory-md-preview-gap: ${PREVIEW_GAP_PX}px;
       --tistory-md-preview-reserved-space: calc(var(--tistory-md-preview-width) + var(--tistory-md-preview-gap) + 24px);
-      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-reserved-space) - 24px);
+      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-width) - var(--tistory-md-preview-gap) - 72px);
+    }
+
+    body.${PREVIEW_OPEN_CLASS} {
+      overflow-x: hidden !important;
     }
 
     body.${PREVIEW_OPEN_CLASS} #post-editor-app {
       box-sizing: border-box !important;
       width: var(--tistory-md-editor-safe-width) !important;
       max-width: var(--tistory-md-editor-safe-width) !important;
+      min-width: 0 !important;
       margin-right: 0 !important;
       padding-right: 0 !important;
+      overflow-x: hidden !important;
       transition: width 180ms ease, max-width 180ms ease !important;
     }
 
     body.${PREVIEW_OPEN_CLASS} #editorContainer,
     body.${PREVIEW_OPEN_CLASS} .markdown-editor {
       max-width: none !important;
+      min-width: 0 !important;
       margin-left: 0 !important;
       margin-right: 0 !important;
       width: 100% !important;
       box-sizing: border-box !important;
+      overflow-x: hidden !important;
     }
 
     #${PANEL_ID}, #${PANEL_ID} * {
