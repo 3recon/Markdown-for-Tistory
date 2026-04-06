@@ -76,14 +76,16 @@ const ensurePreviewStyles = () => {
       --tistory-md-preview-width: ${PREVIEW_WIDTH};
       --tistory-md-preview-gap: ${PREVIEW_GAP_PX}px;
       --tistory-md-preview-reserved-space: calc(var(--tistory-md-preview-width) + var(--tistory-md-preview-gap) + 24px);
+      --tistory-md-editor-left-space: 48px;
     }
 
     body.${PREVIEW_OPEN_CLASS} #post-editor-app,
     body.${PREVIEW_OPEN_CLASS} #editorContainer,
     body.${PREVIEW_OPEN_CLASS} .markdown-editor {
       max-width: none !important;
+      margin-left: var(--tistory-md-editor-left-space) !important;
       margin-right: var(--tistory-md-preview-reserved-space) !important;
-      transition: margin-right 180ms ease !important;
+      transition: margin-left 180ms ease, margin-right 180ms ease !important;
     }
 
     #${PANEL_ID}, #${PANEL_ID} * {
