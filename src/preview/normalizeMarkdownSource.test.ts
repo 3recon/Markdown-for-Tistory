@@ -59,6 +59,18 @@ describe('normalizeMarkdownSource', () => {
     expect(normalized).toBe('line with break  \nnext line');
   });
 
+  it('preserves a trailing newline at the end of the document', () => {
+    const normalized = normalizeMarkdownSource('line\n');
+
+    expect(normalized).toBe('line\n');
+  });
+
+  it('preserves a trailing hard break at the end of the document', () => {
+    const normalized = normalizeMarkdownSource('line  \n');
+
+    expect(normalized).toBe('line  \n');
+  });
+
   it('prevents a pending unordered list marker from turning the previous line into a heading', () => {
     const normalized = normalizeMarkdownSource('동해물과\n백두산이\n-');
 
