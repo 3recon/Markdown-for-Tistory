@@ -99,7 +99,7 @@ const ensurePreviewStyles = () => {
 
     body.${PREVIEW_OPEN_CLASS} #editorContainer {
       box-sizing: border-box !important;
-      width: var(--tistory-md-editor-safe-width) !important;
+      width: auto !important;
       max-width: var(--tistory-md-editor-safe-width) !important;
       min-width: 0 !important;
       padding-left: var(--tistory-md-editor-left-gutter) !important;
