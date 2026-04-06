@@ -84,17 +84,27 @@ const ensurePreviewStyles = () => {
     }
 
     body.${PREVIEW_OPEN_CLASS} #post-editor-app {
-      box-sizing: border-box !important;
-      width: var(--tistory-md-editor-safe-width) !important;
-      max-width: var(--tistory-md-editor-safe-width) !important;
+      width: auto !important;
+      max-width: none !important;
       min-width: 0 !important;
       margin-right: 0 !important;
       padding-right: 0 !important;
       overflow-x: hidden !important;
+      overflow-y: visible !important;
+    }
+
+    body.${PREVIEW_OPEN_CLASS} #editorContainer {
+      box-sizing: border-box !important;
+      width: var(--tistory-md-editor-safe-width) !important;
+      max-width: var(--tistory-md-editor-safe-width) !important;
+      min-width: 0 !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
       transition: width 180ms ease, max-width 180ms ease !important;
     }
 
-    body.${PREVIEW_OPEN_CLASS} #editorContainer,
     body.${PREVIEW_OPEN_CLASS} .markdown-editor {
       max-width: none !important;
       min-width: 0 !important;
@@ -103,6 +113,7 @@ const ensurePreviewStyles = () => {
       width: 100% !important;
       box-sizing: border-box !important;
       overflow-x: hidden !important;
+      overflow-y: visible !important;
     }
 
     #${PANEL_ID}, #${PANEL_ID} * {
