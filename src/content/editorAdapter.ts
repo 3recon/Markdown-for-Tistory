@@ -1,4 +1,5 @@
 import { normalizeMarkdownSource } from '../preview/normalizeMarkdownSource';
+import { isMarkdownModeActive } from './modeControls';
 
 const CONTENTEDITABLE_SELECTOR = '[contenteditable]:not([contenteditable="false"])';
 
@@ -19,6 +20,12 @@ const EDITOR_SCROLL_ROOT_SELECTORS = [
   '#editorContainer',
   '.content-editor',
   '.markdown-editor'
+];
+
+const MARKDOWN_CONTAINER_SELECTORS = [
+  '#markdown-editor-container',
+  '.markdown-editor',
+  '[id*="markdown-editor"]'
 ];
 
 type EditorElement = HTMLTextAreaElement | HTMLElement;
@@ -497,7 +504,42 @@ const toAdapter = (candidate: Element | null): EditorAdapter | null => {
   return null;
 };
 
+const detectMarkdownModeAdapter = (documentRef: Document): EditorAdapter | null => {
+  if (!isMarkdownModeActive()) {
+    return null;
+  }
+
+  for (const selector of MARKDOWN_CONTAINER_SELECTORS) {
+    const container = documentRef.querySelector<HTMLElement>(selector);
+    if (!(container instanceof HTMLElement) || !isVisible(container)) {
+      continue;
+    }
+
+    const codeMirror = container.querySelector<HTMLElement>('.CodeMirror');
+    if (codeMirror instanceof HTMLElement) {
+      return createCodeMirrorAdapter(codeMirror);
+    }
+
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
+    if (textarea instanceof HTMLTextAreaElement) {
+      return createTextareaAdapter(textarea);
+    }
+
+    const editable = container.querySelector<HTMLElement>(CONTENTEDITABLE_SELECTOR);
+    if (editable instanceof HTMLElement) {
+      return createContentEditableAdapter(editable);
+    }
+  }
+
+  return null;
+};
+
 export const detectEditorAdapter = (documentRef: Document): EditorAdapter | null => {
+  const markdownModeAdapter = detectMarkdownModeAdapter(documentRef);
+  if (markdownModeAdapter) {
+    return markdownModeAdapter;
+  }
+
   let bestCandidate: HTMLElement | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
