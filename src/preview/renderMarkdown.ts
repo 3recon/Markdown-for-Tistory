@@ -46,5 +46,14 @@ marked.setOptions({
 });
 
 export const renderMarkdown = (markdown: string): string => {
-  return marked.parse(markdown, { async: false }) as string;
+  const trailingNewlineMatch = markdown.match(/\n+$/);
+  const trailingNewlines = trailingNewlineMatch?.[0].length ?? 0;
+  const trailingBlankParagraphs = Math.max(trailingNewlines - 1, 0);
+  const html = marked.parse(markdown, { async: false }) as string;
+
+  if (trailingBlankParagraphs === 0) {
+    return html;
+  }
+
+  return `${html}${'<p><br></p>'.repeat(trailingBlankParagraphs)}`;
 };

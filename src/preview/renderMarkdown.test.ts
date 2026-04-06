@@ -41,6 +41,13 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<p>quote</p>');
   });
 
+  it('renders trailing blank lines as empty paragraphs', () => {
+    const html = renderMarkdown('line\n\n\n');
+
+    expect(html).toContain('<p>line</p>');
+    expect(html.endsWith('<p><br></p><p><br></p>')).toBe(true);
+  });
+
   it('does not render inline code tags', () => {
     const html = renderMarkdown('before `code` after');
 
