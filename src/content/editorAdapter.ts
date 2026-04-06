@@ -418,6 +418,17 @@ const getIdentityText = (element: HTMLElement): string => {
     .toLowerCase();
 };
 
+const isMarkdownModeSelected = (documentRef: Document): boolean => {
+  const candidates = Array.from(
+    documentRef.querySelectorAll<HTMLElement>('button, [role="button"], .btn, .selectbox, .dropdown')
+  );
+
+  return candidates.some((element) => {
+    const text = (element.textContent ?? '').replace(/\s+/g, '');
+    return text.includes('\uB9C8\uD06C\uB2E4\uC6B4');
+  });
+};
+
 export const isLikelyTitleElement = (element: HTMLElement): boolean => {
   const identityText = getIdentityText(element);
   return /title|subject|heading|headline/.test(identityText);
@@ -487,12 +498,6 @@ const toAdapter = (candidate: Element | null): EditorAdapter | null => {
 };
 
 export const detectEditorAdapter = (documentRef: Document): EditorAdapter | null => {
-  const iframe = documentRef.querySelector<HTMLIFrameElement>('#editor-tistory_ifr');
-  const iframeBody = iframe?.contentDocument?.querySelector<HTMLElement>('body#tinymce');
-  if (iframe && iframeBody && isVisible(iframe)) {
-    return createIframeBodyAdapter(iframe, iframeBody);
-  }
-
   let bestCandidate: HTMLElement | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
@@ -512,7 +517,18 @@ export const detectEditorAdapter = (documentRef: Document): EditorAdapter | null
     }
   }
 
-  return toAdapter(bestCandidate);
+  const preferredAdapter = toAdapter(bestCandidate);
+  if (preferredAdapter && (hasCodeMirrorClass(bestCandidate!) || isMarkdownModeSelected(documentRef))) {
+    return preferredAdapter;
+  }
+
+  const iframe = documentRef.querySelector<HTMLIFrameElement>('#editor-tistory_ifr');
+  const iframeBody = iframe?.contentDocument?.querySelector<HTMLElement>('body#tinymce');
+  if (iframe && iframeBody && isVisible(iframe)) {
+    return createIframeBodyAdapter(iframe, iframeBody);
+  }
+
+  return preferredAdapter;
 };
 
 export const detectEditorAdapterFromTarget = (target: EventTarget | null): EditorAdapter | null => {
