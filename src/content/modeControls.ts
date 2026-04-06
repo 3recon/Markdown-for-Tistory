@@ -87,7 +87,7 @@ const applyPositionNearAnchor = (root: HTMLDivElement, anchor: HTMLElement): voi
     [
       'position: fixed',
       `top: ${Math.round(rect.top + (rect.height - 40) / 2)}px`,
-      `left: ${Math.round(rect.left - 128)}px`,
+      `left: ${Math.round(rect.right + 12)}px`,
       'display: flex',
       'gap: 10px',
       'z-index: 2147483001'
