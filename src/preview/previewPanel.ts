@@ -98,6 +98,7 @@ const ensurePreviewStyles = () => {
       width: var(--tistory-md-editor-safe-width) !important;
       max-width: var(--tistory-md-editor-safe-width) !important;
       min-width: 0 !important;
+      padding-left: 24px !important;
       margin-left: 0 !important;
       margin-right: 0 !important;
       overflow-x: hidden !important;
