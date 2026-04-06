@@ -2,7 +2,7 @@ import type { EditorAdapter } from './editorAdapter';
 
 import { isLikelyTistoryEditorPage } from './tistoryPostIdentity';
 import { detectEditorAdapter } from './editorAdapter';
-import { createModeControls } from './modeControls';
+import { createModeControls, isMarkdownModeActive } from './modeControls';
 import { detectTitleAdapter } from './titleAdapter';
 import { createPreviewPanel } from '../preview/previewPanel';
 import { attachBidirectionalScrollSync } from '../preview/scrollSync';
@@ -42,6 +42,12 @@ export const createExtensionBootstrap = () => {
 
       const syncPreviewLayout = () => {
         preview.syncLayout(editor.scrollElement);
+      };
+
+      const syncModeVisibility = (controls: ReturnType<typeof createModeControls>) => {
+        const markdownMode = isMarkdownModeActive();
+        controls.setVisible(markdownMode);
+        preview.setVisible(markdownMode && currentState.previewEnabled);
       };
 
       const describeScrollElement = (element: HTMLElement) => ({
@@ -87,6 +93,7 @@ export const createExtensionBootstrap = () => {
         }
       });
       controls.reposition();
+      syncModeVisibility(controls);
 
       let scrollSync = attachBidirectionalScrollSync(
         {
@@ -143,6 +150,7 @@ export const createExtensionBootstrap = () => {
         syncPreview(editor.getMarkdown());
         syncPreviewLayout();
         controls.reposition();
+        syncModeVisibility(controls);
         console.warn('[tistory-md] scroll endpoints rebound', {
           editor: describeScrollElement(editor.scrollElement),
           preview: describeScrollElement(preview.scrollElement)
@@ -160,6 +168,7 @@ export const createExtensionBootstrap = () => {
           refreshScheduled = false;
           rebindEditor();
           controls.reposition();
+          syncModeVisibility(controls);
         }, 0);
       };
 

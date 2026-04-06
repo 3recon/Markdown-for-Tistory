@@ -28,6 +28,7 @@ export interface ModeControlsState {
 export interface ModeControlsController {
   setState(state: ModeControlsState): void;
   reposition(): void;
+  setVisible(visible: boolean): void;
 }
 
 const applyButtonState = (button: HTMLButtonElement, active: boolean) => {
@@ -40,6 +41,10 @@ const applyButtonState = (button: HTMLButtonElement, active: boolean) => {
     }`
   );
 };
+
+const MARKDOWN_MODE_TEXT = '\uB9C8\uD06C\uB2E4\uC6B4';
+const BASIC_MODE_TEXT = '\uAE30\uBCF8\uBAA8\uB4DC';
+const PREVIEW_BUTTON_TEXT = '\uBBF8\uB9AC\uBCF4\uAE30';
 
 const findModeDropdownAnchor = (): HTMLElement | null => {
   const candidates = Array.from(
@@ -58,8 +63,8 @@ const findModeDropdownAnchor = (): HTMLElement | null => {
       }
 
       const isModeLike =
-        text.includes('마크다운') ||
-        text.includes('기본모드') ||
+        text.includes(MARKDOWN_MODE_TEXT) ||
+        text.includes(BASIC_MODE_TEXT) ||
         text === 'HTML';
 
       return isModeLike && rect.top >= 0 && rect.top < 180;
@@ -67,6 +72,12 @@ const findModeDropdownAnchor = (): HTMLElement | null => {
     .sort((left, right) => right.rect.left - left.rect.left);
 
   return matches[0]?.element ?? null;
+};
+
+export const isMarkdownModeActive = (): boolean => {
+  const anchor = findModeDropdownAnchor();
+  const text = (anchor?.textContent ?? '').replace(/\s+/g, '');
+  return text.includes(MARKDOWN_MODE_TEXT);
 };
 
 const applyPositionNearAnchor = (root: HTMLDivElement, anchor: HTMLElement): void => {
@@ -98,7 +109,7 @@ export const createModeControls = (options: {
 
   const previewButton = document.createElement('button');
   previewButton.type = 'button';
-  previewButton.textContent = '미리보기';
+  previewButton.textContent = PREVIEW_BUTTON_TEXT;
   previewButton.addEventListener('click', options.onTogglePreview);
 
   root.append(previewButton);
@@ -120,10 +131,15 @@ export const createModeControls = (options: {
     applyButtonState(previewButton, state.previewEnabled);
   };
 
+  const setVisible = (visible: boolean) => {
+    root.style.display = visible ? 'flex' : 'none';
+  };
+
   setState(options.initialState);
 
   return {
     reposition,
-    setState
+    setState,
+    setVisible
   };
 };
