@@ -79,6 +79,9 @@ const protectPendingListMarkers = (input: string): string => {
 };
 
 export const normalizeMarkdownSource = (input: string): string => {
+  const trailingNewlineMatch = input.match(/\n+$/);
+  const trailingNewlines = Math.min(trailingNewlineMatch?.[0].length ?? 0, 2);
+
   const normalized = input
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
@@ -97,5 +100,13 @@ export const normalizeMarkdownSource = (input: string): string => {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  return protectPendingListMarkers(expandListParagraphBreaks(compactStructuredBlocks(normalized)));
+  const compacted = protectPendingListMarkers(
+    expandListParagraphBreaks(compactStructuredBlocks(normalized))
+  );
+
+  if (trailingNewlines === 0) {
+    return compacted;
+  }
+
+  return `${compacted}${'\n'.repeat(trailingNewlines)}`;
 };
