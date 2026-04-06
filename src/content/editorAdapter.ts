@@ -28,6 +28,10 @@ interface CodeMirrorLike {
   setValue(markdown: string): void;
   on(event: 'change', listener: () => void): void;
   off?(event: 'change', listener: () => void): void;
+  replaceSelection?(text: string): void;
+  getDoc?(): {
+    replaceSelection?(text: string): void;
+  };
 }
 
 const isScrollableElement = (element: HTMLElement): boolean => {
@@ -147,6 +151,65 @@ const readCodeMirrorText = (element: HTMLElement): string => {
   return textarea?.value ?? '';
 };
 
+const insertHardBreakIntoTextarea = (textarea: HTMLTextAreaElement): void => {
+  const start = textarea.selectionStart ?? textarea.value.length;
+  const end = textarea.selectionEnd ?? textarea.value.length;
+  const nextValue = `${textarea.value.slice(0, start)}  \n${textarea.value.slice(end)}`;
+  textarea.value = nextValue;
+  const nextCaret = start + 3;
+  textarea.selectionStart = nextCaret;
+  textarea.selectionEnd = nextCaret;
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+const attachHardBreakShortcutToTextarea = (textarea: HTMLTextAreaElement): (() => void) => {
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' || !event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    insertHardBreakIntoTextarea(textarea);
+  };
+
+  textarea.addEventListener('keydown', onKeyDown);
+  return () => textarea.removeEventListener('keydown', onKeyDown);
+};
+
+const attachHardBreakShortcutToCodeMirror = (
+  element: HTMLElement
+): (() => void) => {
+  const instance = getCodeMirrorInstance(element);
+  const textarea = element.querySelector<HTMLTextAreaElement>('textarea');
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' || !event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (instance?.replaceSelection) {
+      instance.replaceSelection('  \n');
+      return;
+    }
+
+    if (instance?.getDoc?.()?.replaceSelection) {
+      instance.getDoc()?.replaceSelection?.('  \n');
+      return;
+    }
+
+    if (textarea) {
+      insertHardBreakIntoTextarea(textarea);
+    }
+  };
+
+  element.addEventListener('keydown', onKeyDown, true);
+  return () => element.removeEventListener('keydown', onKeyDown, true);
+};
+
 const setDocumentScrollTop = (documentRef: Document, scrollTop: number) => {
   const scrollingElement = resolveDocumentScrollElement(documentRef);
   if (scrollingElement) {
@@ -197,14 +260,22 @@ const createCodeMirrorAdapter = (element: HTMLElement): EditorAdapter => ({
     if (instance) {
       const wrapped = () => listener();
       instance.on('change', wrapped);
-      return () => instance.off?.('change', wrapped);
+      const detachHardBreak = attachHardBreakShortcutToCodeMirror(element);
+      return () => {
+        instance.off?.('change', wrapped);
+        detachHardBreak();
+      };
     }
 
     const textarea = element.querySelector<HTMLTextAreaElement>('textarea');
     if (textarea) {
       const wrapped = () => listener();
       textarea.addEventListener('input', wrapped);
-      return () => textarea.removeEventListener('input', wrapped);
+      const detachHardBreak = attachHardBreakShortcutToTextarea(textarea);
+      return () => {
+        textarea.removeEventListener('input', wrapped);
+        detachHardBreak();
+      };
     }
 
     const wrapped = () => listener();
@@ -242,7 +313,11 @@ const createTextareaAdapter = (element: HTMLTextAreaElement): EditorAdapter => (
   onInput(listener: () => void) {
     const wrapped = () => listener();
     element.addEventListener('input', wrapped);
-    return () => element.removeEventListener('input', wrapped);
+    const detachHardBreak = attachHardBreakShortcutToTextarea(element);
+    return () => {
+      element.removeEventListener('input', wrapped);
+      detachHardBreak();
+    };
   },
   onScroll(listener: () => void) {
     const scrollElement = findPreferredEditorScrollElement(element);
