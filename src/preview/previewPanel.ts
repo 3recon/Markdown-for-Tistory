@@ -5,16 +5,19 @@ const BODY_ID = 'tistory-md-preview-body';
 const ARTICLE_TITLE_ID = 'tistory-md-preview-title';
 const CONTENT_ID = 'tistory-md-preview-content';
 const BOTTOM_SPACER_ID = 'tistory-md-preview-bottom-spacer';
+const RESIZE_HANDLE_ID = 'tistory-md-preview-resize-handle';
 const STYLE_ID = 'tistory-md-preview-style';
 const PREVIEW_OPEN_CLASS = 'tistory-md-preview-open';
 const PREVIEW_WIDTH = 'min(38vw, 760px)';
 const PREVIEW_GAP_PX = 24;
+const PREVIEW_MIN_WIDTH_PX = 320;
+const PREVIEW_MAX_WIDTH_RATIO = 0.6;
 
 const panelStyles = `
   position: fixed;
   top: 24px;
   right: 24px;
-  width: ${PREVIEW_WIDTH};
+  width: var(--tistory-md-preview-width);
   height: calc(100vh - 48px);
   display: block;
   min-height: 0;
@@ -119,6 +122,33 @@ const ensurePreviewStyles = () => {
 
     #${PANEL_ID}, #${PANEL_ID} * {
       box-sizing: border-box;
+    }
+
+    #${RESIZE_HANDLE_ID} {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 12px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 2;
+      background: transparent;
+    }
+
+    #${RESIZE_HANDLE_ID}::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.08);
+      transition: background 120ms ease;
+    }
+
+    #${PANEL_ID}:hover #${RESIZE_HANDLE_ID}::after,
+    #${RESIZE_HANDLE_ID}:hover::after {
+      background: rgba(37, 99, 235, 0.45);
     }
 
     #${CONTENT_ID}.article-view.tt_article_useless_p_margin.contents_style {
@@ -404,8 +434,61 @@ const createBottomSpacer = (): HTMLDivElement => {
   return spacer;
 };
 
+const createResizeHandle = (): HTMLDivElement => {
+  const handle = document.createElement('div');
+  handle.id = RESIZE_HANDLE_ID;
+  return handle;
+};
+
 const setSplitViewVisible = (visible: boolean): void => {
   document.body.classList.toggle(PREVIEW_OPEN_CLASS, visible);
+};
+
+const setPreviewWidth = (widthPx: number): void => {
+  const nextWidth = Math.round(
+    Math.min(
+      Math.max(widthPx, PREVIEW_MIN_WIDTH_PX),
+      Math.floor(window.innerWidth * PREVIEW_MAX_WIDTH_RATIO)
+    )
+  );
+  document.documentElement.style.setProperty('--tistory-md-preview-width', `${nextWidth}px`);
+};
+
+const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void => {
+  let startX = 0;
+  let startWidth = 0;
+  let dragging = false;
+
+  const onPointerMove = (event: PointerEvent) => {
+    if (!dragging) {
+      return;
+    }
+
+    const deltaX = startX - event.clientX;
+    setPreviewWidth(startWidth + deltaX);
+  };
+
+  const onPointerUp = () => {
+    if (!dragging) {
+      return;
+    }
+
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+  };
+
+  handle.addEventListener('pointerdown', (event: PointerEvent) => {
+    dragging = true;
+    startX = event.clientX;
+    startWidth = panel.getBoundingClientRect().width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  });
 };
 
 export const createPreviewPanel = (): PreviewPanelController => {
@@ -416,12 +499,20 @@ export const createPreviewPanel = (): PreviewPanelController => {
     const body = existing.querySelector<HTMLElement>(`#${BODY_ID}`);
     const articleTitle = existing.querySelector<HTMLElement>(`#${ARTICLE_TITLE_ID}`);
     const content = existing.querySelector<HTMLElement>(`#${CONTENT_ID}`);
+    const handle =
+      existing.querySelector<HTMLElement>(`#${RESIZE_HANDLE_ID}`) ??
+      createResizeHandle();
     const spacer =
       existing.querySelector<HTMLElement>(`#${BOTTOM_SPACER_ID}`) ??
       createBottomSpacer();
 
     if (!body || !articleTitle || !content) {
       throw new Error('Preview panel exists without required elements.');
+    }
+
+    if (!handle.isConnected) {
+      existing.prepend(handle);
+      attachResizeBehaviour(existing, handle);
     }
 
     if (!spacer.isConnected) {
@@ -452,14 +543,16 @@ export const createPreviewPanel = (): PreviewPanelController => {
   panel.id = PANEL_ID;
   panel.setAttribute('style', panelStyles);
 
+  const handle = createResizeHandle();
   const body = createBody();
   const articleTitle = createArticleTitle();
   const content = createContentRoot();
   const spacer = createBottomSpacer();
   body.append(articleTitle, content, spacer);
 
-  panel.append(body);
+  panel.append(handle, body);
   document.body.append(panel);
+  attachResizeBehaviour(panel, handle);
 
   return {
     element: panel,
