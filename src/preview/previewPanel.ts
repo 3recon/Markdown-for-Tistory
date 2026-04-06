@@ -80,7 +80,7 @@ const ensurePreviewStyles = () => {
       --tistory-md-preview-gap: ${PREVIEW_GAP_PX}px;
       --tistory-md-editor-left-gutter: 40px;
       --tistory-md-preview-reserved-space: calc(var(--tistory-md-preview-width) + var(--tistory-md-preview-gap) + 24px);
-      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-width) - 24px - var(--tistory-md-editor-left-gutter));
+      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-width) - 24px);
     }
 
     body.${PREVIEW_OPEN_CLASS} {
@@ -102,8 +102,8 @@ const ensurePreviewStyles = () => {
       width: var(--tistory-md-editor-safe-width) !important;
       max-width: var(--tistory-md-editor-safe-width) !important;
       min-width: 0 !important;
-      padding-left: 0 !important;
-      margin-left: var(--tistory-md-editor-left-gutter) !important;
+      padding-left: var(--tistory-md-editor-left-gutter) !important;
+      margin-left: 0 !important;
       margin-right: 0 !important;
       overflow-x: hidden !important;
       overflow-y: auto !important;
