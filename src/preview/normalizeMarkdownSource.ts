@@ -4,6 +4,7 @@ const TABLE_ROW_PATTERN = /^\s*\|.*\|\s*$/;
 const LIST_ITEM_PATTERN = /^\s*(?:[-*+]\s+|\d+\.\s+)/;
 const UNORDERED_LIST_MARKER_ONLY_PATTERN = /^\s*[-*+]\s*$/;
 const INDENTED_LINE_PATTERN = /^\s{2,}\S/;
+const HARD_BREAK_PATTERN = /(?: {2,}|\\)$/;
 
 const compactStructuredBlocks = (input: string): string => {
   const lines = input.split('\n');
@@ -42,6 +43,7 @@ const expandListParagraphBreaks = (input: string): string => {
       output.length > 0 &&
       line !== '' &&
       LIST_ITEM_PATTERN.test(previous) &&
+      !HARD_BREAK_PATTERN.test(previous) &&
       !currentIsStructured &&
       !currentIsIndented
     ) {
@@ -83,7 +85,14 @@ export const normalizeMarkdownSource = (input: string): string => {
     .replace(NON_BREAKING_SPACES, ' ')
     .replace(ZERO_WIDTH_CHARACTERS, '')
     .split('\n')
-    .map((line) => line.replace(/\s+$/g, ''))
+    .map((line) => {
+      const hardBreakMatch = line.match(/( {2,})$/);
+      if (hardBreakMatch) {
+        return `${line.slice(0, -hardBreakMatch[1].length)}  `;
+      }
+
+      return line.replace(/\s+$/g, '');
+    })
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

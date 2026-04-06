@@ -47,6 +47,18 @@ describe('normalizeMarkdownSource', () => {
     expect(normalized).toBe('- item\n\nparagraph');
   });
 
+  it('preserves a hard line break inside a list item', () => {
+    const normalized = normalizeMarkdownSource('- item  \ncontinued');
+
+    expect(normalized).toBe('- item  \ncontinued');
+  });
+
+  it('preserves trailing double spaces used for hard breaks', () => {
+    const normalized = normalizeMarkdownSource('line with break   \nnext line');
+
+    expect(normalized).toBe('line with break  \nnext line');
+  });
+
   it('prevents a pending unordered list marker from turning the previous line into a heading', () => {
     const normalized = normalizeMarkdownSource('동해물과\n백두산이\n-');
 
