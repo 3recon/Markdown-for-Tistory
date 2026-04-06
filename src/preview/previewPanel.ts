@@ -9,7 +9,7 @@ const RESIZE_HANDLE_ID = 'tistory-md-preview-resize-handle';
 const STYLE_ID = 'tistory-md-preview-style';
 const PREVIEW_OPEN_CLASS = 'tistory-md-preview-open';
 const PREVIEW_WIDTH = 'min(38vw, 760px)';
-const PREVIEW_GAP_PX = 24;
+const PREVIEW_GAP_PX = 0;
 const PREVIEW_MIN_WIDTH_PX = 320;
 const PREVIEW_MAX_WIDTH_RATIO = 0.6;
 
