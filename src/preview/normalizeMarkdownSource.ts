@@ -95,7 +95,7 @@ export const normalizeMarkdownSource = (input: string): string => {
     })
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\n+/, '');
+    .trim();
 
   return protectPendingListMarkers(expandListParagraphBreaks(compactStructuredBlocks(normalized)));
 };
