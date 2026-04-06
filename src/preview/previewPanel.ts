@@ -4,13 +4,17 @@ const PANEL_ID = 'tistory-md-preview-panel';
 const BODY_ID = 'tistory-md-preview-body';
 const ARTICLE_TITLE_ID = 'tistory-md-preview-title';
 const CONTENT_ID = 'tistory-md-preview-content';
+const BOTTOM_SPACER_ID = 'tistory-md-preview-bottom-spacer';
 const STYLE_ID = 'tistory-md-preview-style';
+const PREVIEW_OPEN_CLASS = 'tistory-md-preview-open';
+const PREVIEW_WIDTH = 'min(38vw, 760px)';
+const PREVIEW_GAP_PX = 24;
 
 const panelStyles = `
   position: fixed;
   top: 24px;
   right: 24px;
-  width: min(42vw, 680px);
+  width: ${PREVIEW_WIDTH};
   height: calc(100vh - 48px);
   display: block;
   min-height: 0;
@@ -28,7 +32,7 @@ const panelStyles = `
 
 const bodyStyles = `
   display: block;
-  padding: 20px 20px 50px;
+  padding: 70px 24px 0;
   color: #333;
   line-height: 1.8;
   font-size: 16px;
@@ -37,35 +41,28 @@ const bodyStyles = `
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", Arial, sans-serif;
 `;
 
-const headerStyles = `
-  position: sticky;
-  top: 0;
-  height: 58px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.98);
-`;
-
-const titleStyles = `
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b7280;
-`;
-
 export interface PreviewPanelController {
   element: HTMLElement;
   body: HTMLElement;
   scrollElement: HTMLElement;
+  syncLayout(anchor: HTMLElement): void;
   setTitle(title: string): void;
   setMarkdown(markdown: string): void;
   setVisible(visible: boolean): void;
 }
+
+const applyPanelLayout = (panel: HTMLElement, anchor: HTMLElement) => {
+  const rect = anchor.getBoundingClientRect();
+  const top = Math.max(rect.top, 24);
+  const bottomGap = 24;
+  const height = Math.max(
+    Math.min(rect.height, window.innerHeight - top - bottomGap),
+    320
+  );
+
+  panel.style.top = `${top}px`;
+  panel.style.height = `${height}px`;
+};
 
 const ensurePreviewStyles = () => {
   if (document.getElementById(STYLE_ID)) {
@@ -75,6 +72,31 @@ const ensurePreviewStyles = () => {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
+    :root {
+      --tistory-md-preview-width: ${PREVIEW_WIDTH};
+      --tistory-md-preview-gap: ${PREVIEW_GAP_PX}px;
+      --tistory-md-preview-reserved-space: calc(var(--tistory-md-preview-width) + var(--tistory-md-preview-gap) + 24px);
+      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-reserved-space) - 24px);
+    }
+
+    body.${PREVIEW_OPEN_CLASS} #post-editor-app {
+      box-sizing: border-box !important;
+      width: var(--tistory-md-editor-safe-width) !important;
+      max-width: var(--tistory-md-editor-safe-width) !important;
+      margin-right: 0 !important;
+      padding-right: 0 !important;
+      transition: width 180ms ease, max-width 180ms ease !important;
+    }
+
+    body.${PREVIEW_OPEN_CLASS} #editorContainer,
+    body.${PREVIEW_OPEN_CLASS} .markdown-editor {
+      max-width: none !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
     #${PANEL_ID}, #${PANEL_ID} * {
       box-sizing: border-box;
     }
@@ -355,6 +377,17 @@ const createContentRoot = (): HTMLDivElement => {
   return content;
 };
 
+const createBottomSpacer = (): HTMLDivElement => {
+  const spacer = document.createElement('div');
+  spacer.id = BOTTOM_SPACER_ID;
+  spacer.setAttribute('style', 'height: 100px;');
+  return spacer;
+};
+
+const setSplitViewVisible = (visible: boolean): void => {
+  document.body.classList.toggle(PREVIEW_OPEN_CLASS, visible);
+};
+
 export const createPreviewPanel = (): PreviewPanelController => {
   ensurePreviewStyles();
 
@@ -363,14 +396,25 @@ export const createPreviewPanel = (): PreviewPanelController => {
     const body = existing.querySelector<HTMLElement>(`#${BODY_ID}`);
     const articleTitle = existing.querySelector<HTMLElement>(`#${ARTICLE_TITLE_ID}`);
     const content = existing.querySelector<HTMLElement>(`#${CONTENT_ID}`);
+    const spacer =
+      existing.querySelector<HTMLElement>(`#${BOTTOM_SPACER_ID}`) ??
+      createBottomSpacer();
+
     if (!body || !articleTitle || !content) {
       throw new Error('Preview panel exists without required elements.');
+    }
+
+    if (!spacer.isConnected) {
+      body.append(spacer);
     }
 
     return {
       element: existing,
       body,
       scrollElement: existing,
+      syncLayout(anchor: HTMLElement) {
+        applyPanelLayout(existing, anchor);
+      },
       setTitle(title: string) {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
@@ -379,6 +423,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
       },
       setVisible(visible: boolean) {
         existing.style.display = visible ? 'flex' : 'none';
+        setSplitViewVisible(visible);
       }
     };
   }
@@ -387,33 +432,22 @@ export const createPreviewPanel = (): PreviewPanelController => {
   panel.id = PANEL_ID;
   panel.setAttribute('style', panelStyles);
 
-  const header = document.createElement('header');
-  header.setAttribute('style', headerStyles);
-
-  const title = document.createElement('h2');
-  title.textContent = 'Preview';
-  title.setAttribute('style', titleStyles);
-
-  const status = document.createElement('span');
-  status.textContent = 'Live';
-  status.setAttribute(
-    'style',
-    'font-size: 12px; color: #065f46; background: #d1fae5; border-radius: 999px; padding: 4px 8px;'
-  );
-
   const body = createBody();
   const articleTitle = createArticleTitle();
   const content = createContentRoot();
-  body.append(articleTitle, content);
+  const spacer = createBottomSpacer();
+  body.append(articleTitle, content, spacer);
 
-  header.append(title, status);
-  panel.append(header, body);
+  panel.append(body);
   document.body.append(panel);
 
   return {
     element: panel,
     body,
     scrollElement: panel,
+    syncLayout(anchor: HTMLElement) {
+      applyPanelLayout(panel, anchor);
+    },
     setTitle(title: string) {
       articleTitle.textContent = title || '제목을 입력하세요';
     },
@@ -422,6 +456,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     },
     setVisible(visible: boolean) {
       panel.style.display = visible ? 'flex' : 'none';
+      setSplitViewVisible(visible);
     }
   };
 };

@@ -1,6 +1,6 @@
 const CONTROLS_ID = 'tistory-md-controls';
 
-const controlsStyle = `
+const fallbackControlsStyle = `
   position: fixed;
   top: 24px;
   right: min(42vw + 40px, 720px);
@@ -27,6 +27,7 @@ export interface ModeControlsState {
 
 export interface ModeControlsController {
   setState(state: ModeControlsState): void;
+  reposition(): void;
 }
 
 const applyButtonState = (button: HTMLButtonElement, active: boolean) => {
@@ -37,6 +38,49 @@ const applyButtonState = (button: HTMLButtonElement, active: boolean) => {
         ? 'background: #111827; color: #fff7ed; border-color: #111827;'
         : 'background: rgba(255, 255, 255, 0.95); color: #111827;'
     }`
+  );
+};
+
+const findModeDropdownAnchor = (): HTMLElement | null => {
+  const candidates = Array.from(
+    document.querySelectorAll<HTMLElement>('button, [role="button"], .btn, .selectbox, .dropdown')
+  );
+
+  const matches = candidates
+    .map((element) => {
+      const text = (element.textContent ?? '').replace(/\s+/g, '');
+      const rect = element.getBoundingClientRect();
+      return { element, text, rect };
+    })
+    .filter(({ text, rect }) => {
+      if (!text || rect.width <= 0 || rect.height <= 0) {
+        return false;
+      }
+
+      const isModeLike =
+        text.includes('마크다운') ||
+        text.includes('기본모드') ||
+        text === 'HTML';
+
+      return isModeLike && rect.top >= 0 && rect.top < 180;
+    })
+    .sort((left, right) => right.rect.left - left.rect.left);
+
+  return matches[0]?.element ?? null;
+};
+
+const applyPositionNearAnchor = (root: HTMLDivElement, anchor: HTMLElement): void => {
+  const rect = anchor.getBoundingClientRect();
+  root.setAttribute(
+    'style',
+    [
+      'position: fixed',
+      `top: ${Math.round(rect.top + (rect.height - 40) / 2)}px`,
+      `left: ${Math.round(rect.left - 128)}px`,
+      'display: flex',
+      'gap: 10px',
+      'z-index: 2147483001'
+    ].join('; ')
   );
 };
 
@@ -51,7 +95,6 @@ export const createModeControls = (options: {
 
   const root = document.createElement('div');
   root.id = CONTROLS_ID;
-  root.setAttribute('style', controlsStyle);
 
   const previewButton = document.createElement('button');
   previewButton.type = 'button';
@@ -61,6 +104,18 @@ export const createModeControls = (options: {
   root.append(previewButton);
   document.body.append(root);
 
+  const reposition = () => {
+    const anchor = findModeDropdownAnchor();
+    if (anchor) {
+      applyPositionNearAnchor(root, anchor);
+      return;
+    }
+
+    root.setAttribute('style', fallbackControlsStyle);
+  };
+
+  reposition();
+
   const setState = (state: ModeControlsState) => {
     applyButtonState(previewButton, state.previewEnabled);
   };
@@ -68,6 +123,7 @@ export const createModeControls = (options: {
   setState(options.initialState);
 
   return {
+    reposition,
     setState
   };
 };
