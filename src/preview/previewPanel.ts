@@ -6,12 +6,15 @@ const ARTICLE_TITLE_ID = 'tistory-md-preview-title';
 const CONTENT_ID = 'tistory-md-preview-content';
 const BOTTOM_SPACER_ID = 'tistory-md-preview-bottom-spacer';
 const STYLE_ID = 'tistory-md-preview-style';
+const PREVIEW_OPEN_CLASS = 'tistory-md-preview-open';
+const PREVIEW_WIDTH = 'min(38vw, 760px)';
+const PREVIEW_GAP_PX = 24;
 
 const panelStyles = `
   position: fixed;
   top: 24px;
   right: 24px;
-  width: min(38vw, 760px);
+  width: ${PREVIEW_WIDTH};
   height: calc(100vh - 48px);
   display: block;
   min-height: 0;
@@ -29,7 +32,7 @@ const panelStyles = `
 
 const bodyStyles = `
   display: block;
-  padding: 100px 24px 0;
+  padding: 70px 24px 0;
   color: #333;
   line-height: 1.8;
   font-size: 16px;
@@ -69,6 +72,20 @@ const ensurePreviewStyles = () => {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
+    :root {
+      --tistory-md-preview-width: ${PREVIEW_WIDTH};
+      --tistory-md-preview-gap: ${PREVIEW_GAP_PX}px;
+      --tistory-md-preview-reserved-space: calc(var(--tistory-md-preview-width) + var(--tistory-md-preview-gap) + 24px);
+    }
+
+    body.${PREVIEW_OPEN_CLASS} #post-editor-app,
+    body.${PREVIEW_OPEN_CLASS} #editorContainer,
+    body.${PREVIEW_OPEN_CLASS} .markdown-editor {
+      max-width: none !important;
+      margin-right: var(--tistory-md-preview-reserved-space) !important;
+      transition: margin-right 180ms ease !important;
+    }
+
     #${PANEL_ID}, #${PANEL_ID} * {
       box-sizing: border-box;
     }
@@ -356,6 +373,10 @@ const createBottomSpacer = (): HTMLDivElement => {
   return spacer;
 };
 
+const setSplitViewVisible = (visible: boolean): void => {
+  document.body.classList.toggle(PREVIEW_OPEN_CLASS, visible);
+};
+
 export const createPreviewPanel = (): PreviewPanelController => {
   ensurePreviewStyles();
 
@@ -391,6 +412,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
       },
       setVisible(visible: boolean) {
         existing.style.display = visible ? 'flex' : 'none';
+        setSplitViewVisible(visible);
       }
     };
   }
@@ -423,6 +445,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     },
     setVisible(visible: boolean) {
       panel.style.display = visible ? 'flex' : 'none';
+      setSplitViewVisible(visible);
     }
   };
 };
