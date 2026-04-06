@@ -11,7 +11,7 @@ const fallbackControlsStyle = `
 
 const buttonBaseStyle = `
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 999px;
+  border-radius: 10px;
   padding: 10px 14px;
   font-size: 13px;
   font-weight: 600;
