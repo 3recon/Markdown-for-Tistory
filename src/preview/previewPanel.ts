@@ -79,7 +79,7 @@ const ensurePreviewStyles = () => {
       --tistory-md-preview-width: ${PREVIEW_WIDTH};
       --tistory-md-preview-gap: ${PREVIEW_GAP_PX}px;
       --tistory-md-preview-reserved-space: calc(var(--tistory-md-preview-width) + var(--tistory-md-preview-gap) + 24px);
-      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-width) - var(--tistory-md-preview-gap) - 72px);
+      --tistory-md-editor-safe-width: calc(100vw - var(--tistory-md-preview-width) - 24px);
     }
 
     body.${PREVIEW_OPEN_CLASS} {
