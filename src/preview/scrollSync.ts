@@ -61,9 +61,6 @@ export const attachBidirectionalScrollSync = (
 
     return Math.abs(actualScrollTop - lastAppliedScrollTop) <= EPSILON;
   };
-  const log = (direction: string, detail: Record<string, unknown>) => {
-    console.warn(`[tistory-md][scroll-sync] ${direction}`, detail);
-  };
 
   const syncToTarget = () => {
     const currentTime = now();
@@ -72,35 +69,12 @@ export const attachBidirectionalScrollSync = (
         source.element.scrollTop,
         lastAppliedSourceScrollTop
       );
-      if (!programmatic) {
-        log(`${source.name} -> ${target.name} guard-bypassed`, {
-          reason: 'source-user-scroll-detected',
-          currentTime,
-          ignoreSourceUntil,
-          sourceScrollTop: source.element.scrollTop,
-          lastAppliedSourceScrollTop
-        });
-      } else {
-      log(`${source.name} -> ${target.name} skipped`, {
-        reason: 'source-guard',
-        currentTime,
-        ignoreSourceUntil,
-        sourceScrollTop: source.element.scrollTop,
-        targetScrollTop: target.element.scrollTop,
-        lastAppliedSourceScrollTop
-      });
+      if (programmatic) {
         return;
       }
     }
 
     if (!canScroll(source.element)) {
-      log(`${source.name} -> ${target.name} skipped`, {
-        reason: 'source-not-scrollable',
-        currentTime,
-        sourceScrollTop: source.element.scrollTop,
-        sourceScrollHeight: source.element.scrollHeight,
-        sourceClientHeight: source.element.clientHeight
-      });
       return;
     }
 
@@ -116,19 +90,6 @@ export const attachBidirectionalScrollSync = (
       target.element.clientHeight
     );
 
-    log(`${source.name} -> ${target.name}`, {
-      currentTime,
-      ratio,
-      sourceScrollTop: source.element.scrollTop,
-      sourceScrollHeight: source.element.scrollHeight,
-      sourceClientHeight: source.element.clientHeight,
-      targetScrollTop: target.element.scrollTop,
-      targetScrollHeight: target.element.scrollHeight,
-      targetClientHeight: target.element.clientHeight,
-      nextScrollTop,
-      ignoreTargetUntil
-    });
-
     if (Math.abs(target.element.scrollTop - nextScrollTop) > EPSILON) {
       target.setScrollTop?.(nextScrollTop) ?? (target.element.scrollTop = nextScrollTop);
     }
@@ -142,35 +103,12 @@ export const attachBidirectionalScrollSync = (
         target.element.scrollTop,
         lastAppliedTargetScrollTop
       );
-      if (!programmatic) {
-        log(`${target.name} -> ${source.name} guard-bypassed`, {
-          reason: 'target-user-scroll-detected',
-          currentTime,
-          ignoreTargetUntil,
-          targetScrollTop: target.element.scrollTop,
-          lastAppliedTargetScrollTop
-        });
-      } else {
-      log(`${target.name} -> ${source.name} skipped`, {
-        reason: 'target-guard',
-        currentTime,
-        ignoreTargetUntil,
-        sourceScrollTop: source.element.scrollTop,
-        targetScrollTop: target.element.scrollTop,
-        lastAppliedTargetScrollTop
-      });
+      if (programmatic) {
         return;
       }
     }
 
     if (!canScroll(target.element)) {
-      log(`${target.name} -> ${source.name} skipped`, {
-        reason: 'target-not-scrollable',
-        currentTime,
-        targetScrollTop: target.element.scrollTop,
-        targetScrollHeight: target.element.scrollHeight,
-        targetClientHeight: target.element.clientHeight
-      });
       return;
     }
 
@@ -185,19 +123,6 @@ export const attachBidirectionalScrollSync = (
       source.element.scrollHeight,
       source.element.clientHeight
     );
-
-    log(`${target.name} -> ${source.name}`, {
-      currentTime,
-      ratio,
-      sourceScrollTop: source.element.scrollTop,
-      sourceScrollHeight: source.element.scrollHeight,
-      sourceClientHeight: source.element.clientHeight,
-      targetScrollTop: target.element.scrollTop,
-      targetScrollHeight: target.element.scrollHeight,
-      targetClientHeight: target.element.clientHeight,
-      nextScrollTop,
-      ignoreSourceUntil
-    });
 
     if (Math.abs(source.element.scrollTop - nextScrollTop) > EPSILON) {
       source.setScrollTop?.(nextScrollTop) ?? (source.element.scrollTop = nextScrollTop);

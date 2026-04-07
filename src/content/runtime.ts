@@ -26,10 +26,6 @@ const isExtensionContextInvalidated = (error: unknown): boolean => {
   return /Extension context invalidated/i.test(error.message);
 };
 
-const isEditorInCurrentDocument = (editor: EditorAdapter): boolean => {
-  return editor.ownerDocument === document;
-};
-
 export const createExtensionBootstrap = () => {
   const settingsRepository = createSettingsRepository(chromeLocalStorageDriver);
 
@@ -40,14 +36,6 @@ export const createExtensionBootstrap = () => {
       }
 
       const settings = await settingsRepository.getSettings();
-      const describeScrollElement = (element: HTMLElement) => ({
-        tagName: element.tagName,
-        id: element.id,
-        className: element.className,
-        scrollTop: element.scrollTop,
-        scrollHeight: element.scrollHeight,
-        clientHeight: element.clientHeight
-      });
       let destroyInitialized: () => void = () => undefined;
       let initialized = false;
       let initScheduled = false;
@@ -82,10 +70,6 @@ export const createExtensionBootstrap = () => {
         syncPreview(editor.getMarkdown());
         preview.setVisible(currentState.previewEnabled);
         syncPreviewLayout();
-        console.warn('[tistory-md] scroll endpoints detected', {
-          editor: describeScrollElement(editor.scrollElement),
-          preview: describeScrollElement(preview.scrollElement)
-        });
 
         const controls = createModeControls({
           initialState: currentState,
@@ -170,10 +154,6 @@ export const createExtensionBootstrap = () => {
           syncPreviewLayout();
           controls.reposition();
           syncModeVisibility(controls);
-          console.warn('[tistory-md] scroll endpoints rebound', {
-            editor: describeScrollElement(editor.scrollElement),
-            preview: describeScrollElement(preview.scrollElement)
-          });
         };
 
         let refreshScheduled = false;
@@ -195,16 +175,6 @@ export const createExtensionBootstrap = () => {
               rebindEditor();
               controls.reposition();
               syncModeVisibility(controls);
-
-              if (
-                delay > 0 &&
-                isMarkdownModeActive() &&
-                !isEditorInCurrentDocument(editor)
-              ) {
-                console.warn(
-                  '[tistory-md] markdown mode is active but the editor is still bound to an iframe. waiting for markdown editor...'
-                );
-              }
             }, delay);
           }
 
@@ -230,8 +200,6 @@ export const createExtensionBootstrap = () => {
 
         const detachTitleInput = title?.onInput(syncTitle) ?? (() => undefined);
 
-        console.warn('[tistory-md] initialized editor integration');
-
         return () => {
           editorObserver.disconnect();
           document.removeEventListener('change', scheduleRefresh, true);
@@ -250,7 +218,6 @@ export const createExtensionBootstrap = () => {
 
         const detectedEditor = detectEditorAdapter(document);
         if (!detectedEditor) {
-          console.warn('[tistory-md] editor page detected but editor is not ready yet.');
           return;
         }
 
