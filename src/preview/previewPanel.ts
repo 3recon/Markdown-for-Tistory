@@ -134,6 +134,7 @@ const ensurePreviewStyles = () => {
       cursor: col-resize;
       z-index: 2;
       background: transparent;
+      touch-action: none;
     }
 
     #${RESIZE_HANDLE_ID}::after {
@@ -456,9 +457,15 @@ const setPreviewWidth = (widthPx: number): void => {
 };
 
 const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void => {
+  if (handle.dataset.resizeBound === 'true') {
+    return;
+  }
+
+  handle.dataset.resizeBound = 'true';
   let startX = 0;
   let startWidth = 0;
   let dragging = false;
+  let activePointerId: number | null = null;
 
   const onPointerMove = (event: PointerEvent) => {
     if (!dragging) {
@@ -475,20 +482,33 @@ const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void =>
     }
 
     dragging = false;
+    if (activePointerId !== null && handle.hasPointerCapture?.(activePointerId)) {
+      try {
+        handle.releasePointerCapture(activePointerId);
+      } catch {
+        // Ignore release errors from browsers that already released capture.
+      }
+    }
+    activePointerId = null;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
   };
 
   handle.addEventListener('pointerdown', (event: PointerEvent) => {
+    event.preventDefault();
     dragging = true;
     startX = event.clientX;
     startWidth = panel.getBoundingClientRect().width;
+    activePointerId = event.pointerId;
+    handle.setPointerCapture?.(event.pointerId);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   });
 };
 
