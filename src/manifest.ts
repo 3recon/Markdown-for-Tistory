@@ -2,9 +2,9 @@ import { defineManifest } from '@crxjs/vite-plugin';
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'Tistory Markdown Companion',
+  name: 'markdown for tistory',
   version: '0.1.0',
-  description: 'Adds a live Markdown preview and tag helpers to the Tistory editor.',
+  description: '티스토리에서 마크다운 미리보기 뷰 제공',
   icons: {
     16: 'icons/icon16.png',
     48: 'icons/icon48.png',
