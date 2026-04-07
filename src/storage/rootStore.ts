@@ -6,8 +6,7 @@ import type { StorageDriver } from './storageDriver';
 
 const createEmptySchema = (): StorageSchema => ({
   version: STORAGE_VERSION,
-  settings: defaultExtensionSettings,
-  tagPresets: {}
+  settings: defaultExtensionSettings
 });
 
 export const createRootStore = (driver: StorageDriver) => {
@@ -19,8 +18,7 @@ export const createRootStore = (driver: StorageDriver) => {
 
     return {
       version: stored.version ?? STORAGE_VERSION,
-      settings: stored.settings ?? defaultExtensionSettings,
-      tagPresets: stored.tagPresets ?? {}
+      settings: stored.settings ?? defaultExtensionSettings
     };
   };
 
