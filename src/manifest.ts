@@ -10,7 +10,6 @@ export default defineManifest({
     48: 'icons/icon48.png',
     128: 'icons/icon128.png'
   },
-  permissions: ['storage'],
   host_permissions: ['*://*.tistory.com/*', '*://tistory.com/*'],
   content_scripts: [
     {

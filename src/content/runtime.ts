@@ -6,8 +6,6 @@ import { createModeControls, isMarkdownModeActive } from './modeControls';
 import { detectTitleAdapter } from './titleAdapter';
 import { createPreviewPanel } from '../preview/previewPanel';
 import { attachBidirectionalScrollSync } from '../preview/scrollSync';
-import { createSettingsRepository } from '../storage/settingsRepository';
-import { chromeLocalStorageDriver } from '../storage/storageDriver';
 
 const REBIND_RETRY_DELAYS = [0, 80, 240, 600, 1400, 2800];
 
@@ -18,24 +16,13 @@ const attachEditorInput = (
   return editor.onInput(listener);
 };
 
-const isExtensionContextInvalidated = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return /Extension context invalidated/i.test(error.message);
-};
-
 export const createExtensionBootstrap = () => {
-  const settingsRepository = createSettingsRepository(chromeLocalStorageDriver);
-
   return {
     async mount() {
       if (!isLikelyTistoryEditorPage(window.location)) {
         return;
       }
 
-      const settings = await settingsRepository.getSettings();
       let destroyInitialized: () => void = () => undefined;
       let initialized = false;
       let initScheduled = false;
@@ -45,7 +32,7 @@ export const createExtensionBootstrap = () => {
         const preview = createPreviewPanel();
         const title = detectTitleAdapter(document);
         let currentState = {
-          previewEnabled: settings.previewEnabled
+          previewEnabled: false
         };
 
         const syncPreview = (markdown: string) => {
@@ -73,7 +60,7 @@ export const createExtensionBootstrap = () => {
 
         const controls = createModeControls({
           initialState: currentState,
-          onTogglePreview: async () => {
+          onTogglePreview: () => {
             currentState = {
               ...currentState,
               previewEnabled: !currentState.previewEnabled
@@ -81,18 +68,6 @@ export const createExtensionBootstrap = () => {
 
             preview.setVisible(currentState.previewEnabled);
             controls.setState(currentState);
-            try {
-              await settingsRepository.updateSettings({
-                previewEnabled: currentState.previewEnabled
-              });
-            } catch (error) {
-              if (isExtensionContextInvalidated(error)) {
-                console.warn('[tistory-md] skipped settings persistence because the extension context was invalidated.');
-                return;
-              }
-
-              console.warn('[tistory-md] failed to persist preview settings.', error);
-            }
           }
         });
         controls.reposition();
