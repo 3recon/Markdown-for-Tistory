@@ -1,4 +1,5 @@
 import { normalizeMarkdownSource } from '../preview/normalizeMarkdownSource';
+import { isMarkdownModeActive } from './modeControls';
 
 const CONTENTEDITABLE_SELECTOR = '[contenteditable]:not([contenteditable="false"])';
 
@@ -19,6 +20,17 @@ const EDITOR_SCROLL_ROOT_SELECTORS = [
   '#editorContainer',
   '.content-editor',
   '.markdown-editor'
+];
+
+const MARKDOWN_CONTAINER_SELECTORS = [
+  '#markdown-editor-container',
+  '.markdown-editor',
+  '[id*="markdown-editor"]'
+];
+
+const HTML_CONTAINER_SELECTORS = [
+  '#html-editor-container',
+  '[id*="html-editor"]'
 ];
 
 type EditorElement = HTMLTextAreaElement | HTMLElement;
@@ -87,6 +99,10 @@ const findPreferredEditorScrollElement = (element: HTMLElement): HTMLElement => 
 
     if (!(candidate instanceof HTMLElement) || !isVisible(candidate)) {
       continue;
+    }
+
+    if (selector === '#editorContainer' || selector === '.content-editor') {
+      return candidate;
     }
 
     if (isScrollContainerCandidate(candidate)) {
@@ -404,6 +420,20 @@ const isVisible = (element: HTMLElement): boolean => {
   );
 };
 
+const findVisibleContainer = (
+  documentRef: Document,
+  selectors: string[]
+): HTMLElement | null => {
+  for (const selector of selectors) {
+    const element = documentRef.querySelector<HTMLElement>(selector);
+    if (element instanceof HTMLElement && isVisible(element)) {
+      return element;
+    }
+  }
+
+  return null;
+};
+
 const getIdentityText = (element: HTMLElement): string => {
   return [
     element.id,
@@ -416,6 +446,27 @@ const getIdentityText = (element: HTMLElement): string => {
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+};
+
+const isMarkdownModeSelected = (documentRef: Document): boolean => {
+  const candidates = Array.from(
+    documentRef.querySelectorAll<HTMLElement>('button, [role="button"], .btn, .selectbox, .dropdown')
+  );
+
+  return candidates.some((element) => {
+    const text = (element.textContent ?? '').replace(/\s+/g, '');
+    return text.includes('\uB9C8\uD06C\uB2E4\uC6B4');
+  });
+};
+
+const isMarkdownContainerActive = (documentRef: Document): boolean => {
+  const markdownContainer = findVisibleContainer(documentRef, MARKDOWN_CONTAINER_SELECTORS);
+  if (!markdownContainer) {
+    return false;
+  }
+
+  const htmlContainer = findVisibleContainer(documentRef, HTML_CONTAINER_SELECTORS);
+  return !htmlContainer || markdownContainer !== htmlContainer;
 };
 
 export const isLikelyTitleElement = (element: HTMLElement): boolean => {
@@ -486,11 +537,50 @@ const toAdapter = (candidate: Element | null): EditorAdapter | null => {
   return null;
 };
 
+const detectMarkdownModeAdapter = (documentRef: Document): EditorAdapter | null => {
+  if (!isMarkdownModeActive() && !isMarkdownContainerActive(documentRef)) {
+    return null;
+  }
+
+  const container = findVisibleContainer(documentRef, MARKDOWN_CONTAINER_SELECTORS);
+  if (!container) {
+    return null;
+  }
+
+  const visibleCodeMirror = Array.from(container.querySelectorAll<HTMLElement>('.CodeMirror'))
+    .find((element) => isVisible(element) && !element.className.includes('tistory-html'));
+  if (visibleCodeMirror) {
+    return createCodeMirrorAdapter(visibleCodeMirror);
+  }
+
+  const visibleTextarea = Array.from(container.querySelectorAll<HTMLTextAreaElement>('textarea'))
+    .find((element) => isVisible(element));
+  if (visibleTextarea) {
+    return createTextareaAdapter(visibleTextarea);
+  }
+
+  const hiddenMarkdownTextarea = Array.from(
+    container.querySelectorAll<HTMLTextAreaElement>('textarea')
+  ).find((element) => {
+    const owner = element.closest<HTMLElement>('.CodeMirror, .ReactCodeMirror, [class*="markdown"]');
+    return owner === null || !owner.className.includes('tistory-html');
+  });
+  if (hiddenMarkdownTextarea) {
+    return createTextareaAdapter(hiddenMarkdownTextarea);
+  }
+
+  const editable = container.querySelector<HTMLElement>(CONTENTEDITABLE_SELECTOR);
+  if (editable instanceof HTMLElement) {
+    return createContentEditableAdapter(editable);
+  }
+
+  return null;
+};
+
 export const detectEditorAdapter = (documentRef: Document): EditorAdapter | null => {
-  const iframe = documentRef.querySelector<HTMLIFrameElement>('#editor-tistory_ifr');
-  const iframeBody = iframe?.contentDocument?.querySelector<HTMLElement>('body#tinymce');
-  if (iframe && iframeBody && isVisible(iframe)) {
-    return createIframeBodyAdapter(iframe, iframeBody);
+  const markdownModeAdapter = detectMarkdownModeAdapter(documentRef);
+  if (markdownModeAdapter) {
+    return markdownModeAdapter;
   }
 
   let bestCandidate: HTMLElement | null = null;
@@ -512,7 +602,18 @@ export const detectEditorAdapter = (documentRef: Document): EditorAdapter | null
     }
   }
 
-  return toAdapter(bestCandidate);
+  const preferredAdapter = toAdapter(bestCandidate);
+  if (preferredAdapter && (hasCodeMirrorClass(bestCandidate!) || isMarkdownModeSelected(documentRef))) {
+    return preferredAdapter;
+  }
+
+  const iframe = documentRef.querySelector<HTMLIFrameElement>('#editor-tistory_ifr');
+  const iframeBody = iframe?.contentDocument?.querySelector<HTMLElement>('body#tinymce');
+  if (iframe && iframeBody && isVisible(iframe)) {
+    return createIframeBodyAdapter(iframe, iframeBody);
+  }
+
+  return preferredAdapter;
 };
 
 export const detectEditorAdapterFromTarget = (target: EventTarget | null): EditorAdapter | null => {

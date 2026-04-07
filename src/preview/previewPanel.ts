@@ -22,7 +22,7 @@ const panelStyles = `
   display: block;
   min-height: 0;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
+  border-radius: 0;
   background: #ffffff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
   overflow-x: hidden;
@@ -43,6 +43,14 @@ const bodyStyles = `
   word-wrap: break-word;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", Arial, sans-serif;
 `;
+
+const syncResizeHandleLayout = (panel: HTMLElement, handle: HTMLElement): void => {
+  const rect = panel.getBoundingClientRect();
+  handle.style.top = `${rect.top}px`;
+  handle.style.left = `${rect.left}px`;
+  handle.style.height = `${rect.height}px`;
+  handle.style.display = panel.style.display === 'none' ? 'none' : 'block';
+};
 
 export interface PreviewPanelController {
   element: HTMLElement;
@@ -99,7 +107,7 @@ const ensurePreviewStyles = () => {
 
     body.${PREVIEW_OPEN_CLASS} #editorContainer {
       box-sizing: border-box !important;
-      width: var(--tistory-md-editor-safe-width) !important;
+      width: auto !important;
       max-width: var(--tistory-md-editor-safe-width) !important;
       min-width: 0 !important;
       padding-left: var(--tistory-md-editor-left-gutter) !important;
@@ -126,14 +134,15 @@ const ensurePreviewStyles = () => {
     }
 
     #${RESIZE_HANDLE_ID} {
-      position: absolute;
+      position: fixed;
       top: 0;
       left: 0;
       width: 12px;
-      height: 100%;
+      height: 0;
       cursor: col-resize;
-      z-index: 2;
+      z-index: 2147483001;
       background: transparent;
+      touch-action: none;
     }
 
     #${RESIZE_HANDLE_ID}::after {
@@ -456,9 +465,15 @@ const setPreviewWidth = (widthPx: number): void => {
 };
 
 const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void => {
+  if (handle.dataset.resizeBound === 'true') {
+    return;
+  }
+
+  handle.dataset.resizeBound = 'true';
   let startX = 0;
   let startWidth = 0;
   let dragging = false;
+  let activePointerId: number | null = null;
 
   const onPointerMove = (event: PointerEvent) => {
     if (!dragging) {
@@ -467,6 +482,7 @@ const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void =>
 
     const deltaX = startX - event.clientX;
     setPreviewWidth(startWidth + deltaX);
+    syncResizeHandleLayout(panel, handle);
   };
 
   const onPointerUp = () => {
@@ -475,20 +491,34 @@ const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void =>
     }
 
     dragging = false;
+    if (activePointerId !== null && handle.hasPointerCapture?.(activePointerId)) {
+      try {
+        handle.releasePointerCapture(activePointerId);
+      } catch {
+        // Ignore release errors from browsers that already released capture.
+      }
+    }
+    activePointerId = null;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
   };
 
   handle.addEventListener('pointerdown', (event: PointerEvent) => {
+    event.preventDefault();
     dragging = true;
     startX = event.clientX;
     startWidth = panel.getBoundingClientRect().width;
+    activePointerId = event.pointerId;
+    syncResizeHandleLayout(panel, handle);
+    handle.setPointerCapture?.(event.pointerId);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   });
 };
 
@@ -511,10 +541,12 @@ export const createPreviewPanel = (): PreviewPanelController => {
       throw new Error('Preview panel exists without required elements.');
     }
 
-    if (!handle.isConnected) {
-      existing.prepend(handle);
+      if (!handle.isConnected) {
+        existing.prepend(handle);
+      }
+
       attachResizeBehaviour(existing, handle);
-    }
+      syncResizeHandleLayout(existing, handle);
 
     if (!spacer.isConnected) {
       body.append(spacer);
@@ -523,21 +555,23 @@ export const createPreviewPanel = (): PreviewPanelController => {
     return {
       element: existing,
       body,
-      scrollElement: existing,
-      syncLayout(anchor: HTMLElement) {
-        applyPanelLayout(existing, anchor);
-      },
+        scrollElement: existing,
+        syncLayout(anchor: HTMLElement) {
+          applyPanelLayout(existing, anchor);
+          syncResizeHandleLayout(existing, handle);
+        },
       setTitle(title: string) {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
       setMarkdown(markdown: string) {
         content.innerHTML = renderMarkdown(markdown);
       },
-      setVisible(visible: boolean) {
-        existing.style.display = visible ? 'flex' : 'none';
-        setSplitViewVisible(visible);
-      }
-    };
+        setVisible(visible: boolean) {
+          existing.style.display = visible ? 'flex' : 'none';
+          setSplitViewVisible(visible);
+          syncResizeHandleLayout(existing, handle);
+        }
+      };
   }
 
   const panel = document.createElement('aside');
@@ -554,6 +588,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
   panel.append(handle, body);
   document.body.append(panel);
   attachResizeBehaviour(panel, handle);
+  syncResizeHandleLayout(panel, handle);
 
   return {
     element: panel,
@@ -561,6 +596,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     scrollElement: panel,
     syncLayout(anchor: HTMLElement) {
       applyPanelLayout(panel, anchor);
+      syncResizeHandleLayout(panel, handle);
     },
     setTitle(title: string) {
       articleTitle.textContent = title || '제목을 입력하세요';
@@ -571,6 +607,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     setVisible(visible: boolean) {
       panel.style.display = visible ? 'flex' : 'none';
       setSplitViewVisible(visible);
+      syncResizeHandleLayout(panel, handle);
     }
   };
 };
