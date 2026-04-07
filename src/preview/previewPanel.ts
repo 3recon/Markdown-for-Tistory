@@ -44,6 +44,14 @@ const bodyStyles = `
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Apple SD Gothic Neo", Arial, sans-serif;
 `;
 
+const syncResizeHandleLayout = (panel: HTMLElement, handle: HTMLElement): void => {
+  const rect = panel.getBoundingClientRect();
+  handle.style.top = `${rect.top}px`;
+  handle.style.left = `${rect.left}px`;
+  handle.style.height = `${rect.height}px`;
+  handle.style.display = panel.style.display === 'none' ? 'none' : 'block';
+};
+
 export interface PreviewPanelController {
   element: HTMLElement;
   body: HTMLElement;
@@ -126,13 +134,13 @@ const ensurePreviewStyles = () => {
     }
 
     #${RESIZE_HANDLE_ID} {
-      position: absolute;
+      position: fixed;
       top: 0;
       left: 0;
       width: 12px;
-      height: 100%;
+      height: 0;
       cursor: col-resize;
-      z-index: 2;
+      z-index: 2147483001;
       background: transparent;
       touch-action: none;
     }
@@ -474,6 +482,7 @@ const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void =>
 
     const deltaX = startX - event.clientX;
     setPreviewWidth(startWidth + deltaX);
+    syncResizeHandleLayout(panel, handle);
   };
 
   const onPointerUp = () => {
@@ -503,6 +512,7 @@ const attachResizeBehaviour = (panel: HTMLElement, handle: HTMLElement): void =>
     startX = event.clientX;
     startWidth = panel.getBoundingClientRect().width;
     activePointerId = event.pointerId;
+    syncResizeHandleLayout(panel, handle);
     handle.setPointerCapture?.(event.pointerId);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
@@ -531,10 +541,12 @@ export const createPreviewPanel = (): PreviewPanelController => {
       throw new Error('Preview panel exists without required elements.');
     }
 
-    if (!handle.isConnected) {
-      existing.prepend(handle);
+      if (!handle.isConnected) {
+        existing.prepend(handle);
+      }
+
       attachResizeBehaviour(existing, handle);
-    }
+      syncResizeHandleLayout(existing, handle);
 
     if (!spacer.isConnected) {
       body.append(spacer);
@@ -543,21 +555,23 @@ export const createPreviewPanel = (): PreviewPanelController => {
     return {
       element: existing,
       body,
-      scrollElement: existing,
-      syncLayout(anchor: HTMLElement) {
-        applyPanelLayout(existing, anchor);
-      },
+        scrollElement: existing,
+        syncLayout(anchor: HTMLElement) {
+          applyPanelLayout(existing, anchor);
+          syncResizeHandleLayout(existing, handle);
+        },
       setTitle(title: string) {
         articleTitle.textContent = title || '제목을 입력하세요';
       },
       setMarkdown(markdown: string) {
         content.innerHTML = renderMarkdown(markdown);
       },
-      setVisible(visible: boolean) {
-        existing.style.display = visible ? 'flex' : 'none';
-        setSplitViewVisible(visible);
-      }
-    };
+        setVisible(visible: boolean) {
+          existing.style.display = visible ? 'flex' : 'none';
+          setSplitViewVisible(visible);
+          syncResizeHandleLayout(existing, handle);
+        }
+      };
   }
 
   const panel = document.createElement('aside');
@@ -574,6 +588,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
   panel.append(handle, body);
   document.body.append(panel);
   attachResizeBehaviour(panel, handle);
+  syncResizeHandleLayout(panel, handle);
 
   return {
     element: panel,
@@ -581,6 +596,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     scrollElement: panel,
     syncLayout(anchor: HTMLElement) {
       applyPanelLayout(panel, anchor);
+      syncResizeHandleLayout(panel, handle);
     },
     setTitle(title: string) {
       articleTitle.textContent = title || '제목을 입력하세요';
@@ -591,6 +607,7 @@ export const createPreviewPanel = (): PreviewPanelController => {
     setVisible(visible: boolean) {
       panel.style.display = visible ? 'flex' : 'none';
       setSplitViewVisible(visible);
+      syncResizeHandleLayout(panel, handle);
     }
   };
 };
