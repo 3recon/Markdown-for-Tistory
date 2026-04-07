@@ -101,6 +101,10 @@ const findPreferredEditorScrollElement = (element: HTMLElement): HTMLElement => 
       continue;
     }
 
+    if (selector === '#editorContainer' || selector === '.content-editor') {
+      return candidate;
+    }
+
     if (isScrollContainerCandidate(candidate)) {
       return candidate;
     }
