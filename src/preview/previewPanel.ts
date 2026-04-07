@@ -22,7 +22,7 @@ const panelStyles = `
   display: block;
   min-height: 0;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
+  border-radius: 0;
   background: #ffffff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
   overflow-x: hidden;
