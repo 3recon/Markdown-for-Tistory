@@ -5,6 +5,11 @@ export default defineManifest({
   name: 'Tistory Markdown Companion',
   version: '0.1.0',
   description: 'Adds a live Markdown preview and tag helpers to the Tistory editor.',
+  icons: {
+    16: 'icons/icon16.png',
+    48: 'icons/icon48.png',
+    128: 'icons/icon128.png'
+  },
   permissions: ['storage'],
   host_permissions: ['*://*.tistory.com/*', '*://tistory.com/*'],
   content_scripts: [
