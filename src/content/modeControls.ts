@@ -46,6 +46,15 @@ const MARKDOWN_MODE_TEXT = '\uB9C8\uD06C\uB2E4\uC6B4';
 const BASIC_MODE_TEXT = '\uAE30\uBCF8\uBAA8\uB4DC';
 const PREVIEW_BUTTON_TEXT = '\uBBF8\uB9AC\uBCF4\uAE30';
 
+const isVisible = (element: Element | null): element is HTMLElement => {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+};
+
 const findModeDropdownAnchor = (): HTMLElement | null => {
   const candidates = Array.from(
     document.querySelectorAll<HTMLElement>('button, [role="button"], .btn, .selectbox, .dropdown')
@@ -75,6 +84,21 @@ const findModeDropdownAnchor = (): HTMLElement | null => {
 };
 
 export const isMarkdownModeActive = (): boolean => {
+  const markdownContainer = document.querySelector('#markdown-editor-container');
+  if (isVisible(markdownContainer)) {
+    return true;
+  }
+
+  const htmlContainer = document.querySelector('#html-editor-container');
+  if (isVisible(htmlContainer)) {
+    return false;
+  }
+
+  const iframeEditor = document.querySelector('#editor-tistory_ifr');
+  if (isVisible(iframeEditor)) {
+    return false;
+  }
+
   const anchor = findModeDropdownAnchor();
   const text = (anchor?.textContent ?? '').replace(/\s+/g, '');
   return text.includes(MARKDOWN_MODE_TEXT);
